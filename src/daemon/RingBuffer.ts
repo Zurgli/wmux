@@ -77,11 +77,11 @@ export class RingBuffer {
     return Buffer.concat([tail, head]);
   }
 
-  /** Clear the buffer, resetting all pointers. */
+  /** Clear the buffer, resetting all pointers and zeroing sensitive data. */
   clear(): void {
+    this.buffer.fill(0);
     this.writePos = 0;
     this.length = 0;
-    // No need to zero the underlying buffer — length guards reads
   }
 
   /** Number of bytes currently stored. */
@@ -97,7 +97,8 @@ export class RingBuffer {
   /** Dump the buffer contents to a file (for DEAD session log preservation). */
   async dumpToFile(filePath: string): Promise<void> {
     const data = this.readAll();
-    await writeFile(filePath, data);
+    // Note: mode is no-op on Windows; use icacls for NTFS ACLs
+    await writeFile(filePath, data, { mode: 0o600 });
   }
 
   /** Create a RingBuffer pre-filled with data loaded from a file. */

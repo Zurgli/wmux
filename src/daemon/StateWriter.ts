@@ -32,7 +32,8 @@ export class StateWriter {
       const json = JSON.stringify(state, null, 2);
 
       // 1. Write to temporary file
-      fs.writeFileSync(this.tmpPath, json, 'utf-8');
+      // Note: mode is no-op on Windows; use icacls for NTFS ACLs
+      fs.writeFileSync(this.tmpPath, json, { encoding: 'utf-8', mode: 0o600 });
 
       // 2. Backup current file (if it exists)
       if (fs.existsSync(this.filePath)) {
@@ -142,7 +143,8 @@ export class StateWriter {
   ensureBufferDir(): void {
     const dir = path.join(path.dirname(this.filePath), 'buffers');
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      // Note: mode is no-op on Windows; use icacls for NTFS ACLs
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
   }
 

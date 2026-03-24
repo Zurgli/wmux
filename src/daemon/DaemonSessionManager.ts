@@ -51,6 +51,17 @@ export class DaemonSessionManager extends EventEmitter {
     createdAt?: string;
     scrollbackData?: Buffer;
   }): DaemonSession {
+    // Validate session ID to prevent path traversal, injection, or oversized keys
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(params.id)) {
+      throw new Error(`Invalid session ID: must be 1-64 chars of [a-zA-Z0-9_-]`);
+    }
+
+    // Guard against resource exhaustion from unbounded session creation
+    const MAX_SESSIONS = 50;
+    if (this.sessions.size >= MAX_SESSIONS) {
+      throw new Error(`Maximum session limit (${MAX_SESSIONS}) reached`);
+    }
+
     if (this.sessions.has(params.id)) {
       throw new Error(`Session '${params.id}' already exists`);
     }
@@ -63,19 +74,46 @@ export class DaemonSessionManager extends EventEmitter {
     // Build clean environment — strip Electron/Vite vars and sensitive credentials.
     // When no explicit env is provided, use a filtered copy of process.env
     // to prevent leaking secrets (API keys, tokens, etc.) to child processes.
+    //
+    // Rationale: Child PTY sessions inherit the daemon's environment. We use
+    // pattern-based blocking to catch common secret-bearing variable naming
+    // conventions (_TOKEN, _SECRET, _PASSWORD, _CREDENTIALS suffixes) plus
+    // exact matches for well-known secrets that don't follow those patterns.
+    // SAFE_PASSTHROUGH overrides allow variables that match patterns but are
+    // known to be harmless (e.g. SSH_AUTH_SOCK is a socket path, not a secret).
     const SENSITIVE_PATTERNS = [
       /^ELECTRON_/,
       /^VITE_/,
-      /^WMUX_AUTH/,       // internal auth tokens
+      /^WMUX_AUTH/,         // internal auth tokens
+      /^ORIGINAL_XDG_/,     // Electron-injected XDG overrides
+      /_TOKEN$/,            // API tokens (GITHUB_TOKEN, NPM_TOKEN, etc.)
+      /_SECRET$/,           // Secrets (various providers)
+      /_PASSWORD$/,         // Database passwords
+      /_CREDENTIALS$/,      // Credential file paths/values
     ];
     const SENSITIVE_EXACT = new Set([
       'NODE_OPTIONS',
       'ELECTRON_RUN_AS_NODE',
+      'AWS_SECRET_ACCESS_KEY',
+      'AWS_SESSION_TOKEN',
+      'ANTHROPIC_API_KEY',
+      'OPENAI_API_KEY',
+      'GITHUB_TOKEN',
+      'GH_TOKEN',
+      'NPM_TOKEN',
+      'DOCKER_PASSWORD',
+      'DATABASE_URL',       // Often contains embedded credentials
+    ]);
+    // Known-safe variables that match patterns above but should NOT be blocked
+    const SAFE_PASSTHROUGH = new Set([
+      'SSH_AUTH_SOCK',      // SSH agent socket (no secret, just a path)
+      'COLORTERM',          // Terminal capability hint — matches nothing dangerous
     ]);
     const env: Record<string, string> = {};
     const baseEnv = params.env ?? globalThis.process.env;
     for (const [key, value] of Object.entries(baseEnv)) {
       if (value === undefined) continue;
+      if (SAFE_PASSTHROUGH.has(key)) { env[key] = value; continue; }
       if (SENSITIVE_EXACT.has(key)) continue;
       if (SENSITIVE_PATTERNS.some((re) => re.test(key))) continue;
       env[key] = value;
@@ -143,6 +181,8 @@ export class DaemonSessionManager extends EventEmitter {
     bridge.on('exit', (payload: { sessionId: string; exitCode: number | null }) => {
       meta.state = 'dead';
       meta.exitCode = payload.exitCode;
+      // Clean up bridge timers/listeners to prevent leaks when sessions die naturally
+      managed.bridge.cleanup();
       this.emit('session:died', { id: params.id, exitCode: payload.exitCode });
       this.emit('session:stateChanged', { id: params.id, state: 'dead' as DaemonSessionState });
     });

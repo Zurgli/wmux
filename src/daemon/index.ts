@@ -54,7 +54,8 @@ function isProcessRunning(pid: number): boolean {
 function acquireLock(): boolean {
   const dir = getWmuxDir();
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    // Note: mode is no-op on Windows; use icacls for NTFS ACLs
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
 
   // Attempt exclusive lock file creation to prevent race conditions
@@ -94,7 +95,7 @@ function acquireLock(): boolean {
   }
 
   // Write PID file (separate from lock for backward compat)
-  fs.writeFileSync(PID_FILE, String(process.pid), 'utf-8');
+  fs.writeFileSync(PID_FILE, String(process.pid), { encoding: 'utf-8', mode: 0o600 });
   return true;
 }
 
@@ -216,6 +217,9 @@ function registerRpcHandlers(
   // daemon.createSession
   pipeServer.onRpc('daemon.createSession', async (params) => {
     const p = params as unknown as DaemonCreateSessionParams;
+    if (typeof p.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(p.id)) {
+      throw new Error('Invalid session ID');
+    }
     const session = sessionManager.createSession({
       id: p.id,
       cmd: p.cmd,
@@ -560,7 +564,7 @@ async function main(): Promise<void> {
   const activePipeName = pipeServer.getActivePipeName();
   const pipeNameFile = path.join(wmuxDir, 'daemon-pipe');
   try {
-    fs.writeFileSync(pipeNameFile, activePipeName, 'utf-8');
+    fs.writeFileSync(pipeNameFile, activePipeName, { encoding: 'utf-8', mode: 0o600 });
   } catch (err) {
     log('warn', 'Failed to write pipe name file:', err);
   }
@@ -571,6 +575,26 @@ async function main(): Promise<void> {
     memory: process.memoryUsage().rss,
     uptime: Math.floor((Date.now() - startTime) / 1000),
   }));
+
+  // 8b. Reap dead sessions that exceeded their TTL (hourly)
+  const reapInterval = setInterval(() => {
+    let reaped = 0;
+    for (const managed of sessionManager.listManagedSessions()) {
+      if (managed.meta.state !== 'dead') continue;
+      const deadSince = new Date(managed.meta.lastActivity).getTime();
+      const ttlMs = managed.meta.deadTtlHours * 60 * 60 * 1000;
+      if (Date.now() - deadSince >= ttlMs) {
+        sessionManager.destroySession(managed.meta.id);
+        reaped++;
+      }
+    }
+    if (reaped > 0) {
+      log('info', `Reaped ${reaped} expired dead session(s)`);
+      const state = buildState(sessionManager);
+      stateWriter.saveImmediate(state);
+    }
+  }, 60 * 60 * 1000); // Every hour
+  reapInterval.unref();
 
   // 9. Signal handlers
   const doShutdown = (sig: string) =>

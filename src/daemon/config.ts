@@ -83,7 +83,18 @@ export function loadConfig(): DaemonConfig {
       return defaults;
     }
 
-    return parsed as DaemonConfig;
+    const config = parsed as DaemonConfig;
+
+    // Enforce upper bound on buffer size to prevent excessive memory usage.
+    // Hard cap at 256 MB regardless of bufferMaxMb setting.
+    const HARD_CAP_MB = 256;
+    const effectiveMax = Math.min(config.session.bufferMaxMb, HARD_CAP_MB);
+    if (config.session.bufferSizeMb > effectiveMax) {
+      console.warn(`[daemon/config] bufferSizeMb (${config.session.bufferSizeMb}) exceeds max (${effectiveMax}), capping`);
+      config.session.bufferSizeMb = effectiveMax;
+    }
+
+    return config;
   } catch (err) {
     console.warn('[daemon/config] Failed to read config.json — resetting to defaults:', err);
     saveConfig(defaults);
@@ -102,7 +113,8 @@ export function saveConfig(config: DaemonConfig): void {
   }
 
   try {
-    fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), 'utf-8');
+    // Note: mode is no-op on Windows; use icacls for NTFS ACLs
+    fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
     fs.renameSync(tmpPath, configPath);
   } catch (err) {
     console.error('[daemon/config] Failed to save config:', err);
