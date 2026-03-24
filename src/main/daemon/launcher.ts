@@ -96,10 +96,14 @@ function spawnDaemon(): Promise<number> {
     console.log(`[launcher] projectRoot = ${projectRoot}, resourcesPath = ${resourcesRoot}`);
 
     const candidates = [
-      // Production (extraResource)
+      // Production (extraResource) — esbuild bundle
+      path.join(resourcesRoot, 'daemon-bundle', 'index.js'),
+      // Production fallback (old layout)
       path.join(resourcesRoot, 'daemon', 'daemon', 'index.js'),
       path.join(resourcesRoot, 'daemon', 'index.js'),
-      // Development
+      // Development — esbuild bundle
+      path.join(projectRoot, 'dist', 'daemon-bundle', 'index.js'),
+      // Development fallback (tsc output)
       path.join(projectRoot, 'dist', 'daemon', 'daemon', 'index.js'),
       path.join(projectRoot, 'dist', 'daemon', 'index.js'),
     ];
@@ -140,7 +144,7 @@ function spawnDaemon(): Promise<number> {
 
     // Wait for daemon to be ready
     let attempts = 0;
-    const maxAttempts = 30; // 30 * 200ms = 6 seconds
+    const maxAttempts = 75; // 75 * 200ms = 15 seconds
 
     const poll = setInterval(async () => {
       attempts++;
@@ -161,7 +165,7 @@ function spawnDaemon(): Promise<number> {
 
       if (attempts >= maxAttempts) {
         clearInterval(poll);
-        reject(new Error('Daemon spawned but not responding after 6 seconds'));
+        reject(new Error('Daemon spawned but not responding after 15 seconds'));
       }
     }, 200);
   });

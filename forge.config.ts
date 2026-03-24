@@ -24,7 +24,7 @@ const config: ForgeConfig = {
       unpack: '**/node_modules/node-pty/**',
     },
     icon: './assets/icon',
-    extraResource: ['./dist/mcp-bundle', './dist/daemon'],
+    extraResource: ['./dist/mcp-bundle', './dist/daemon-bundle'],
   },
   hooks: {
     postPackage: async (_config, packageResult) => {
@@ -57,7 +57,16 @@ const config: ForgeConfig = {
 
       // 4. Cleanup temp
       fs.rmSync(tempDir, { recursive: true });
-      console.log('[postPackage] Done — node-pty bundled.');
+      console.log('[postPackage] Done — node-pty bundled in asar.');
+
+      // 5. Copy node-pty into daemon-bundle/node_modules so the detached daemon process can find it
+      const daemonBundleDir = path.join(outputPath, 'resources', 'daemon-bundle');
+      if (fs.existsSync(daemonBundleDir)) {
+        const daemonNodePty = path.join(daemonBundleDir, 'node_modules', 'node-pty');
+        console.log('[postPackage] Copying node-pty for daemon-bundle...');
+        copyDirSync(path.join(__dirname, 'node_modules', 'node-pty'), daemonNodePty);
+        console.log('[postPackage] Done — node-pty available for daemon.');
+      }
     },
   },
   makers: [
