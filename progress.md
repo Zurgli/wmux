@@ -1,21 +1,29 @@
-# Progress — Security Hardening
+# Progress — Security Hardening Round 2
 
 ## Summary
-- Phase: 5 (마무리)
-- Done: 5/5 | In Progress: 0 | Waiting: 0 | Blocked: 0
+- Phase: 3 (구현)
+- Done: 0/4 | In Progress: 0 | Waiting: 4 | Blocked: 0
 
-## DAG
-- W1-A (PTY 새니타이징): [] — DONE
-- W1-B (URL 검증 SSRF): [] — DONE
-- W1-C (ProcessMonitor 비동기): [] — DONE
-- W1-D (SessionPipe 인증 + DaemonClient 이중 disconnect): [] — DONE
-- W2-A (env 블록리스트 확장 + 세션 정리 + 파일 퍼미션): [W1-*] — DONE
+## DAG (전체 병렬 — 파일 겹침 없음)
+- G-A (CDP 보안 + 디버그 로그 제거): []
+- G-B (FS 경로 제한 + 워치 제한): []
+- G-C (browser_evaluate 제한): []
+- G-D (Watchdog 에스컬레이션): []
 
-## Code Review
-- Phase 4 review: FAIL → 1 Important (IPv6 SSRF bypass)
-- Fix applied: IPv4-mapped/compatible IPv6 recursive validation
-- Re-review: implicit PASS (fix addresses the specific bypass path)
+## Groups
 
-## Test Results
-- 138/139 pass
-- 1 failure: pre-existing DaemonSessionManager shell path resolution test (unrelated)
+### G-A: CDP 포트 랜덤화 + wsUrl 비노출 + 디버그 로그 제거 (T4+T14)
+- **Status**: waiting
+- **Files**: src/main/index.ts, src/main/browser-session/WebviewCdpManager.ts, src/main/pipe/handlers/browser.rpc.ts
+
+### G-B: FS 경로 제한 + 워치 개수 제한 (T7+T12)
+- **Status**: waiting
+- **Files**: src/main/ipc/handlers/fs.handler.ts
+
+### G-C: browser_evaluate/wait 위험 패턴 경고 (T11)
+- **Status**: waiting
+- **Files**: src/mcp/playwright/tools/inspection.ts, src/mcp/playwright/tools/wait.ts
+
+### G-D: Watchdog 에스컬레이션 (T13)
+- **Status**: waiting
+- **Files**: src/daemon/Watchdog.ts, src/daemon/index.ts

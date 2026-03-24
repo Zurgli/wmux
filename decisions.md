@@ -1,31 +1,23 @@
-# Decisions Log — Security Hardening
+# Decisions Log — Security Hardening Round 2
 
-## DEC-001: 보안 수정 범위 — Phase 1 (CRITICAL + HIGH 우선)
+## DEC-001: T4 CDP 보안 — 포트 랜덤화 + wsUrl 비노출
 - **Date**: 2026-03-24
-- **Context**: 감사에서 CRITICAL ~11건, HIGH ~14건, MEDIUM ~18건 발견. 전부 한 번에 할지, 우선순위별로 나눌지
-- **Decision**: Phase 1에서 CRITICAL + 핵심 HIGH 수정. MEDIUM/LOW는 후속 작업
-- **Rationale**: 24/7 에이전트 운영의 즉각적 위험 제거가 최우선. 범위 과다 방지
+- **Context**: CDP를 완전 비활성화하면 PlaywrightEngine(connectOverCDP) + WebviewCdpManager 전부 사용 불가
+- **Decision**: CDP 완전 비활성화 대신 (1) 포트 랜덤화 (18800-18899 범위), (2) browser.cdp.info/target에서 raw wsUrl 제거, (3) 하드코딩 디버그 로그 경로 제거 (T14 포함)
+- **Rationale**: PlaywrightEngine.connect()와 WebviewCdpManager 모두 CDP 포트 필요. 포트 고정(18800)이 문제지 CDP 자체가 문제가 아님
 
-## DEC-002: 최종 수정 범위 — 8개 태스크 (T4/T7 제외)
+## DEC-002: T7 FS 경로 제한 — 민감 경로 차단 (blocklist)
 - **Date**: 2026-03-24
-- **Context**: T1-T10 전부 vs 위험도 높은 T4(CDP)/T7(파일시스템 제한) 분리
-- **Decision**: T1-T3, T5-T6, T8-T10 (8개) 이번에 수정. T4(CDP 보안 강화), T7(파일시스템 경로 제한)은 다음 라운드
-- **Rationale**: T4/T7은 정책 설계가 핵심이라 실사용 패턴 파악 필요. 나머지 8개로 CRITICAL 8건 + HIGH 4건 해결 가능. T2(SessionPipe 인증)로 로컬 공격 경로도 차단됨
+- **Context**: fs.handler.ts가 모든 경로 읽기 허용
+- **Decision**: 민감 경로 차단 방식. ~/.ssh, ~/.aws, ~/.gnupg, 인증서/토큰 파일 차단. 나머지 허용
+- **Rationale**: 터미널 앱은 다양한 경로 접근이 필요. 차단 목록이 더 현실적
 
-## DEC-003: sanitizePtyText 재설계 — 위험 제어문자만 차단
+## DEC-003: T11 browser_evaluate 제한 — 위험 패턴 경고 + 감사 로그
 - **Date**: 2026-03-24
-- **Context**: 기존 sanitizePtyText()가 CR(\r), LF(\n)도 제거 → Enter, 멀티라인 붙여넣기 깨짐
-- **Decision**: 새니타이저를 재설계. NULL(\x00)과 C1 제어문자(\x80-\x9f)만 제거. CR/LF/Tab/ESC 시퀀스는 보존. `raw: true` 옵트인으로 완전 우회 가능
-- **Rationale**: 터미널 멀티플렉서에서 CR/LF는 필수. architect-reviewer FAIL 판정
+- **Context**: browser_evaluate 완전 차단하면 MCP 브라우저 자동화 핵심 기능 상실
+- **Decision**: 위험 패턴 감지 시 경고 반환 + 실행은 허용하되 로그 기록. browser_wait fn도 동일
+- **Rationale**: 에이전트가 의도적으로 쓸 수 있어야 하지만, 프롬프트 인젝션 방어로 경고 제공
 
-## DEC-004: 환경변수 — 블록리스트 확장 (허용목록 대신)
+## DEC-004: 범위 — 4개 병렬 그룹
 - **Date**: 2026-03-24
-- **Context**: 허용목록 방식은 GOPATH, JAVA_HOME, CONDA_PREFIX 등 개발 도구 env를 차단 → 에이전트 워크플로우 파괴
-- **Decision**: 기존 블록리스트 유지 + 확장. 추가 차단: `*_TOKEN`, `*_SECRET`, `*_KEY`, `*_PASSWORD` 패턴 (SSH_AUTH_SOCK 등 알려진 안전 변수는 예외)
-- **Rationale**: architect-reviewer FAIL 판정. 터미널 멀티플렉서의 핵심 기능은 사용자 환경 그대로 전달
-
-## DEC-005: W1-D daemon/index.ts 수정 범위
-- **Date**: 2026-03-24
-- **Context**: SessionPipe 생성자 변경으로 daemon/index.ts도 수정 필요 → W2-A와 파일 충돌
-- **Decision**: W1-D가 daemon/index.ts의 SessionPipe 생성자 호출부만 수정. W2-A는 다른 섹션(env, cleanup, permissions) 수정. 병합 시 충돌 최소화
-- **Rationale**: 수정 위치가 명확히 분리되어 충돌 리스크 낮음
+- **Decision**: G-A(T4+T14), G-B(T7+T12), G-C(T11), G-D(T13) 전부 병렬
