@@ -288,6 +288,13 @@ function registerRpcHandlers(
         sessionDataListeners.delete(p.id);
       }
 
+      // Stop existing SessionPipe if still listening (prevents EADDRINUSE on reconnect)
+      const existingPipe = sessionPipes.get(p.id);
+      if (existingPipe) {
+        await existingPipe.stop().catch(() => {});
+        sessionPipes.delete(p.id);
+      }
+
       const pipe = new SessionPipe(p.id, managed.ringBuffer);
       sessionPipes.set(p.id, pipe);
 

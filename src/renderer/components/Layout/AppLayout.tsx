@@ -202,21 +202,33 @@ export default function AppLayout() {
       if (!saved) return;
       useStore.getState().loadSession(saved);
 
-      // Reconcile saved PTY IDs with active PTYs
+      // Reconcile saved PTY IDs with daemon's active sessions.
+      // If a saved ptyId exists in the daemon, reconnect to it.
+      // Otherwise, clear it so Terminal.tsx creates a fresh PTY.
       try {
         const activePtys = await window.electronAPI.pty.list();
         const activeIds = new Set(activePtys.map((p: { id: string }) => p.id));
+        console.log('[AppLayout] Daemon active PTYs:', [...activeIds]);
 
         const state = useStore.getState();
         const reconcile = async (pane: Pane) => {
           if (pane.type === 'leaf') {
             for (const surface of pane.surfaces) {
               if (surface.surfaceType === 'browser' || surface.surfaceType === 'editor') continue;
-              if (surface.ptyId && activeIds.has(surface.ptyId)) {
-                // PTY still alive — reconnect
-                await window.electronAPI.pty.reconnect(surface.ptyId);
-              } else if (surface.ptyId) {
-                // PTY dead — clear so Terminal.tsx creates new
+              if (!surface.ptyId) {
+                console.log(`[AppLayout] Surface ${surface.id}: no ptyId, will create new`);
+                continue;
+              }
+              if (activeIds.has(surface.ptyId)) {
+                console.log(`[AppLayout] Surface ${surface.id}: reconnecting to ${surface.ptyId}`);
+                const result = await window.electronAPI.pty.reconnect(surface.ptyId);
+                console.log(`[AppLayout] Reconnect result:`, result);
+                if (!result.success) {
+                  console.warn(`[AppLayout] Reconnect failed, clearing ptyId`);
+                  useStore.getState().updateSurfacePtyId(pane.id, surface.id, '');
+                }
+              } else {
+                console.log(`[AppLayout] Surface ${surface.id}: ptyId ${surface.ptyId} not in daemon, clearing`);
                 useStore.getState().updateSurfacePtyId(pane.id, surface.id, '');
               }
             }
@@ -226,8 +238,10 @@ export default function AppLayout() {
         };
 
         for (const ws of state.workspaces) {
+          console.log(`[AppLayout] Reconciling workspace: ${ws.name}`);
           await reconcile(ws.rootPane);
         }
+        console.log('[AppLayout] Reconciliation complete');
       } catch (err) {
         console.error('[AppLayout] PTY reconciliation failed:', err);
       }

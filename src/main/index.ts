@@ -35,6 +35,10 @@ import { WebviewCdpManager } from './browser-session/WebviewCdpManager';
 import { DaemonClient, getDaemonPipeName, readDaemonAuthToken } from './DaemonClient';
 import { ensureDaemon } from './daemon/launcher';
 
+// Force English for Chromium internal messages to avoid encoding corruption
+// on non-ASCII locales (e.g. Korean Windows where cp949 garbles console output).
+app.commandLine.appendSwitch('lang', 'en-US');
+
 // CDP (Chrome DevTools Protocol) remote debugging
 if (process.env.WMUX_DISABLE_CDP !== 'true') {
   const cdpPort = Number(process.env.WMUX_CDP_PORT) || 18800;

@@ -141,13 +141,21 @@ export function registerPTYHandlers(
       if (!Number.isInteger(cols) || cols <= 0 || !Number.isInteger(rows) || rows <= 0) {
         throw new Error(`PTY_RESIZE: cols and rows must be positive integers (got cols=${cols}, rows=${rows})`);
       }
-      await daemonClient.rpc('daemon.resizeSession', { id, cols, rows });
+      try {
+        await daemonClient.rpc('daemon.resizeSession', { id, cols, rows });
+      } catch (err: unknown) {
+        // Session may have been destroyed during reconciliation — ignore gracefully
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('not found') || msg.includes('not exist')) return;
+        throw err;
+      }
     });
   } else {
     ipcMain.handle(IPC.PTY_RESIZE, (_event, id: string, cols: number, rows: number) => {
       if (!Number.isInteger(cols) || cols <= 0 || !Number.isInteger(rows) || rows <= 0) {
         throw new Error(`PTY_RESIZE: cols and rows must be positive integers (got cols=${cols}, rows=${rows})`);
       }
+      if (!ptyManager.get(id)) return;
       ptyManager.resize(id, cols, rows);
     });
   }

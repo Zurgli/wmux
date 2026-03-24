@@ -32,7 +32,9 @@ export default function TerminalComponent({ ptyId: externalPtyId, shell, cwd, on
   const setSearchBarVisible = useStore((s) => s.setSearchBarVisible);
 
   useEffect(() => {
+    console.log(`[Terminal] useEffect: externalPtyId=${externalPtyId}, scrollbackFile=${scrollbackFile}`);
     if (externalPtyId) {
+      console.log(`[Terminal] Using existing ptyId: ${externalPtyId}`);
       setPtyId(externalPtyId);
       return;
     }
@@ -56,6 +58,7 @@ export default function TerminalComponent({ ptyId: externalPtyId, shell, cwd, on
       rows = Math.max(2, Math.floor((container.offsetHeight - padding) / lineHeight));
     }
 
+    console.log(`[Terminal] Creating new PTY: shell=${shell}, cwd=${cwd}, cols=${cols}, rows=${rows}`);
     window.electronAPI.pty.create({ shell, cwd, cols, rows }).then((result: { id: string }) => {
       if (cancelled) {
         // 이미 unmount됨 — PTY 정리

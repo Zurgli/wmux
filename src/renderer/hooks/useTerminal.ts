@@ -41,6 +41,8 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const { ptyId, isVisible = true, scrollbackFile } = options;
+  const ptyIdRef = useRef(ptyId);
+  ptyIdRef.current = ptyId;
   const terminalFontSize = useStore((s) => s.terminalFontSize);
   const terminalFontFamily = useStore((s) => s.terminalFontFamily);
   const scrollbackLines = useStore((s) => s.scrollbackLines);
@@ -56,11 +58,12 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
     try {
       fitAddonRef.current.fit();
-      if (ptyId) {
+      const currentPtyId = ptyIdRef.current;
+      if (currentPtyId) {
         const { cols, rows } = terminalRef.current;
         // Never send 0-size resize to PTY — that corrupts the terminal buffer.
         if (cols > 0 && rows > 0) {
-          window.electronAPI.pty.resize(ptyId, cols, rows);
+          window.electronAPI.pty.resize(currentPtyId, cols, rows);
         }
       }
     } catch {
@@ -334,10 +337,11 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
             }
 
             const { cols, rows } = term;
-            if (cols > 0 && rows > 0 && (cols !== lastSentCols || rows !== lastSentRows)) {
+            const currentPtyId = ptyIdRef.current;
+            if (currentPtyId && cols > 0 && rows > 0 && (cols !== lastSentCols || rows !== lastSentRows)) {
               lastSentCols = cols;
               lastSentRows = rows;
-              window.electronAPI.pty.resize(ptyId, cols, rows);
+              window.electronAPI.pty.resize(currentPtyId, cols, rows);
             }
           } catch {
             // ignore fit errors during unmount
