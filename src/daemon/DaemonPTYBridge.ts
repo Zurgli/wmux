@@ -1,0 +1,134 @@
+import { EventEmitter } from 'node:events';
+import type { IPty } from 'node-pty';
+import { OscParser } from '../main/pty/OscParser';
+import { AgentDetector } from '../main/pty/AgentDetector';
+import { ActivityMonitor } from '../main/pty/ActivityMonitor';
+import { RingBuffer } from './RingBuffer';
+
+/**
+ * Daemon version of PTYBridge.
+ * Replaces BrowserWindow IPC with EventEmitter events.
+ *
+ * Events:
+ *  - 'data'     → Buffer (raw PTY output)
+ *  - 'cwd'      → { sessionId: string, cwd: string }
+ *  - 'agent'    → { sessionId: string, event: AgentEvent }
+ *  - 'critical'  → { sessionId: string, event: CriticalEvent }
+ *  - 'idle'     → { sessionId: string }
+ */
+export class DaemonPTYBridge extends EventEmitter {
+  private oscParser: OscParser | null = null;
+  private agentDetector: AgentDetector | null = null;
+  private activityMonitor: ActivityMonitor | null = null;
+  private dataDisposable: (() => void) | null = null;
+  private exitDisposable: (() => void) | null = null;
+  private idleUnsubscribe: (() => void) | null = null;
+  private sessionId: string | null = null;
+
+  // Prompt-based CWD detection (ported from PTYBridge)
+  // eslint-disable-next-line no-control-regex
+  private static readonly ANSI_STRIP = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b\[[\?]?[0-9;]*[hlm]/g;
+  private static readonly PROMPT_CWD = /(?:PS\s+([A-Za-z]:\\[^>]*?)>)|(?:\w+@[\w.-]+:([^\$]+?)\$)/;
+
+  setupDataForwarding(ptyProcess: IPty, ringBuffer: RingBuffer, sessionId: string): void {
+    const oscParser = new OscParser();
+    this.oscParser = oscParser;
+
+    const agentDetector = new AgentDetector();
+    this.agentDetector = agentDetector;
+
+    this.sessionId = sessionId;
+
+    const activityMonitor = new ActivityMonitor();
+    this.activityMonitor = activityMonitor;
+    activityMonitor.start(sessionId);
+
+    // Activity → idle notification
+    this.idleUnsubscribe = activityMonitor.onActiveToIdle((ptyId) => {
+      this.emit('idle', { sessionId: ptyId });
+    });
+
+    // OSC events → cwd
+    oscParser.onOsc((event) => {
+      if (event.code === 7) {
+        const cwd = event.data.replace(/^file:\/\/[^/]*/, '');
+        this.emit('cwd', { sessionId, cwd });
+      }
+    });
+
+    // Agent detection
+    agentDetector.onEvent((agentEvent) => {
+      this.emit('agent', { sessionId, event: agentEvent });
+    });
+
+    // Critical action detection
+    agentDetector.onCritical((criticalEvent) => {
+      this.emit('critical', { sessionId, event: criticalEvent });
+    });
+
+    // Prompt-based CWD detection state
+    let lastDetectedCwd = '';
+    let promptBuffer = '';
+
+    // PTY data handler
+    const onDataDisposable = ptyProcess.onData((data: string) => {
+      try {
+        const buf = Buffer.from(data);
+        ringBuffer.write(buf);
+        activityMonitor.feed(sessionId, buf.length);
+        oscParser.process(data);
+        agentDetector.feed(data);
+
+        // Prompt-based CWD detection
+        promptBuffer += data;
+        if (promptBuffer.length > 1024) promptBuffer = promptBuffer.slice(-512);
+
+        const clean = promptBuffer.replace(DaemonPTYBridge.ANSI_STRIP, '');
+        const promptMatch = clean.match(DaemonPTYBridge.PROMPT_CWD);
+        if (promptMatch) {
+          const detectedCwd = (promptMatch[1] || promptMatch[2] || '').trim();
+          if (detectedCwd && detectedCwd !== lastDetectedCwd) {
+            lastDetectedCwd = detectedCwd;
+            this.emit('cwd', { sessionId, cwd: detectedCwd });
+          }
+          promptBuffer = '';
+        }
+
+        this.emit('data', buf);
+      } catch (err) {
+        // Still forward raw data even if parsing failed
+        this.emit('data', Buffer.from(data));
+      }
+    });
+    this.dataDisposable = () => onDataDisposable.dispose();
+
+    // PTY exit handler
+    const onExitDisposable = ptyProcess.onExit(({ exitCode }) => {
+      this.emit('exit', { sessionId, exitCode });
+    });
+    this.exitDisposable = () => onExitDisposable.dispose();
+  }
+
+  cleanup(): void {
+    this.dataDisposable?.();
+    this.dataDisposable = null;
+
+    this.exitDisposable?.();
+    this.exitDisposable = null;
+
+    this.idleUnsubscribe?.();
+    this.idleUnsubscribe = null;
+
+    // Stop activity monitor to clear timers and state
+    if (this.activityMonitor && this.sessionId) {
+      this.activityMonitor.stop(this.sessionId);
+    }
+
+    this.oscParser = null;
+    this.agentDetector = null;
+    this.activityMonitor = null;
+    this.sessionId = null;
+
+    this.removeAllListeners();
+  }
+}

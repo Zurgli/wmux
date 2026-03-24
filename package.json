@@ -1,0 +1,99 @@
+{
+  "name": "@wong2kim/wmux",
+  "productName": "wmux",
+  "version": "1.1.1",
+  "description": "Windows terminal multiplexer with MCP server for AI agents - run multiple CLI sessions in parallel, control via Claude Code and other AI tools",
+  "main": ".vite/build/index.js",
+  "scripts": {
+    "postinstall": "node scripts/fix-node-pty.js",
+    "start": "npm run build:mcp && electron-forge start",
+    "package": "npm run build:mcp && electron-forge package",
+    "make": "npm run build:mcp && electron-forge make",
+    "forge-publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx .",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "build:mcp": "tsc -p tsconfig.mcp.json && esbuild dist/mcp/mcp/index.js --bundle --platform=node --outfile=dist/mcp-bundle/index.js --external:electron --external:playwright-core",
+    "cli": "node dist/cli/cli/index.js",
+    "mcp": "node dist/mcp/mcp/index.js",
+    "prepublishOnly": "npm run build:cli && npm run build:mcp",
+    "test": "vitest run"
+  },
+  "bin": {
+    "wmux": "dist/cli/cli/index.js",
+    "wmux-mcp": "dist/mcp/mcp/index.js"
+  },
+  "files": [
+    "dist/cli/",
+    "dist/mcp/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "terminal",
+    "multiplexer",
+    "mcp",
+    "ai-agent",
+    "cli",
+    "windows",
+    "claude-code",
+    "electron"
+  ],
+  "author": {
+    "name": "openwong2kim",
+    "email": "100856670+openwong2kim@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openwong2kim/wmux.git"
+  },
+  "homepage": "https://github.com/openwong2kim/wmux#readme",
+  "bugs": {
+    "url": "https://github.com/openwong2kim/wmux/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.1",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
+    "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron-forge/plugin-vite": "^7.11.1",
+    "@electron/fuses": "^1.8.0",
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.27",
+    "electron": "41.0.3",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.32.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "electron-squirrel-startup": "^1.0.1",
+    "immer": "^11.1.4",
+    "node-pty": "^1.1.0",
+    "playwright-core": "^1.58.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-resizable-panels": "^4.7.3",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  }
+}

@@ -1,0 +1,140 @@
+import { webContents } from 'electron';
+
+export interface CdpTargetInfo {
+  surfaceId: string;
+  webContentsId: number;
+  targetId: string;
+  wsUrl: string;
+}
+
+export class WebviewCdpManager {
+  private sessions = new Map<string, CdpTargetInfo>();
+  private waiters = new Map<string, Array<(target: CdpTargetInfo) => void>>();
+  private cdpPort: number;
+
+  constructor(cdpPort = 18800) {
+    this.cdpPort = cdpPort;
+  }
+
+  async register(surfaceId: string, webContentsId: number): Promise<void> {
+    if (this.sessions.has(surfaceId)) {
+      this.unregister(surfaceId);
+    }
+
+    const wc = webContents.fromId(webContentsId);
+    if (!wc || wc.isDestroyed()) {
+      console.warn(`[WebviewCdpManager] webContents ${webContentsId} not found or destroyed`);
+      return;
+    }
+
+    try {
+      wc.debugger.attach('1.3');
+    } catch (err) {
+      if (!String(err).includes('Already attached')) {
+        console.error(`[WebviewCdpManager] debugger.attach failed:`, err);
+        return;
+      }
+    }
+
+    let targetId = `wc-${webContentsId}`;
+    let wsUrl = `ws://127.0.0.1:${this.cdpPort}/devtools/page/${targetId}`;
+
+    try {
+      const resp = await fetch(`http://127.0.0.1:${this.cdpPort}/json`);
+      const targets: Array<{ id: string; webSocketDebuggerUrl: string; url: string; title: string }> =
+        await resp.json();
+      const wcUrl = wc.getURL();
+      const match = targets.find(
+        (t) => t.url === wcUrl || t.title === wc.getTitle(),
+      );
+      if (match) {
+        targetId = match.id;
+        wsUrl = match.webSocketDebuggerUrl;
+      }
+    } catch (err) {
+      console.warn(`[WebviewCdpManager] /json fetch failed, using fallback:`, err);
+    }
+
+    const info: CdpTargetInfo = { surfaceId, webContentsId, targetId, wsUrl };
+    this.sessions.set(surfaceId, info);
+
+    wc.on('destroyed', () => {
+      this.unregister(surfaceId);
+    });
+
+    const pending = this.waiters.get(surfaceId);
+    if (pending) {
+      for (const resolve of pending) resolve(info);
+      this.waiters.delete(surfaceId);
+    }
+
+    console.log(`[WebviewCdpManager] Registered surface=${surfaceId} target=${targetId}`);
+  }
+
+  unregister(surfaceId: string): void {
+    const session = this.sessions.get(surfaceId);
+    if (!session) return;
+
+    try {
+      const wc = webContents.fromId(session.webContentsId);
+      if (wc && !wc.isDestroyed()) {
+        wc.debugger.detach();
+      }
+    } catch {
+      // Already detached or destroyed
+    }
+
+    this.sessions.delete(surfaceId);
+    console.log(`[WebviewCdpManager] Unregistered surface=${surfaceId}`);
+  }
+
+  getTarget(surfaceId?: string): CdpTargetInfo | null {
+    if (surfaceId) {
+      return this.sessions.get(surfaceId) ?? null;
+    }
+    const first = this.sessions.values().next();
+    return first.done ? null : first.value;
+  }
+
+  waitForTarget(surfaceId: string, timeoutMs = 5000): Promise<CdpTargetInfo> {
+    const existing = this.sessions.get(surfaceId);
+    if (existing) return Promise.resolve(existing);
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const pending = this.waiters.get(surfaceId);
+        if (pending) {
+          const idx = pending.indexOf(wrappedResolve);
+          if (idx >= 0) pending.splice(idx, 1);
+          if (pending.length === 0) this.waiters.delete(surfaceId);
+        }
+        reject(new Error(`timeout waiting for CDP target: ${surfaceId}`));
+      }, timeoutMs);
+
+      const wrappedResolve = (target: CdpTargetInfo) => {
+        clearTimeout(timer);
+        resolve(target);
+      };
+
+      if (!this.waiters.has(surfaceId)) {
+        this.waiters.set(surfaceId, []);
+      }
+      this.waiters.get(surfaceId)!.push(wrappedResolve);
+    });
+  }
+
+  getCdpPort(): number {
+    return this.cdpPort;
+  }
+
+  listTargets(): CdpTargetInfo[] {
+    return [...this.sessions.values()];
+  }
+
+  disposeAll(): void {
+    for (const surfaceId of [...this.sessions.keys()]) {
+      this.unregister(surfaceId);
+    }
+    this.waiters.clear();
+  }
+}
