@@ -178,11 +178,48 @@ async function recoverSessions(
         changed = true;
       }
     } else {
-      // Non-suspended live session from old state — cannot recover
-      // Kill orphaned process if still alive
+      // Non-suspended live session — check for periodic snapshot buf file
+      // (written every 30s, survives forced kills / power loss)
       if (await ProcessMonitor.isAlive(session.pid)) {
         try { process.kill(session.pid); } catch { /* ignore */ }
       }
+
+      const snapshotPath = stateWriter.getBufferDumpPath(session.id);
+      if (fs.existsSync(snapshotPath)) {
+        try {
+          const scrollbackData = fs.readFileSync(snapshotPath);
+          const cwd = fs.existsSync(session.cwd) ? session.cwd : os.homedir();
+
+          const recovered = sessionManager.createSession({
+            id: session.id,
+            cmd: session.cmd,
+            cwd,
+            env: session.env,
+            cols: session.cols,
+            rows: session.rows,
+            agent: session.agent,
+            createdAt: session.createdAt,
+            scrollbackData,
+          });
+
+          processMonitor.watch(recovered.id, recovered.pid, () => {
+            const managed = sessionManager.getSession(recovered.id);
+            if (managed && managed.meta.state !== 'dead') {
+              managed.meta.state = 'dead';
+              sessionManager.emit('session:died', { id: recovered.id, exitCode: null });
+            }
+          });
+
+          try { fs.unlinkSync(snapshotPath); } catch { /* ignore */ }
+          recoveredIds.add(session.id);
+          changed = true;
+          log('info', `Recovered session ${session.id} from snapshot in ${cwd}`);
+          continue;
+        } catch (err) {
+          log('error', `Failed to recover session ${session.id} from snapshot:`, err);
+        }
+      }
+
       session.state = 'dead';
       session.exitCode = null;
       changed = true;
@@ -274,6 +311,10 @@ function registerRpcHandlers(
     processMonitor.unwatch(p.id);
 
     sessionManager.destroySession(p.id);
+
+    // Clean up buffer dump file if exists
+    const bufPath = stateWriter.getBufferDumpPath(p.id);
+    try { if (fs.existsSync(bufPath)) fs.unlinkSync(bufPath); } catch { /* ignore */ }
 
     const state = buildState(sessionManager);
     stateWriter.saveImmediate(state);
@@ -408,6 +449,10 @@ function wireEvents(
 
     // Stop process monitoring
     processMonitor.unwatch(payload.id);
+
+    // Clean up buffer dump file — dead sessions don't need snapshots
+    const bufPath = stateWriter.getBufferDumpPath(payload.id);
+    try { if (fs.existsSync(bufPath)) fs.unlinkSync(bufPath); } catch { /* ignore */ }
 
     // Save state
     const state = buildState(sessionManager);
@@ -579,6 +624,8 @@ async function main(): Promise<void> {
       let reaped = 0;
       for (const managed of sessionManager.listManagedSessions()) {
         if (managed.meta.state !== 'dead') continue;
+        const bufPath = stateWriter.getBufferDumpPath(managed.meta.id);
+        try { if (fs.existsSync(bufPath)) fs.unlinkSync(bufPath); } catch { /* ignore */ }
         sessionManager.destroySession(managed.meta.id);
         reaped++;
       }
@@ -609,6 +656,8 @@ async function main(): Promise<void> {
       const deadSince = new Date(managed.meta.lastActivity).getTime();
       const ttlMs = managed.meta.deadTtlHours * 60 * 60 * 1000;
       if (Date.now() - deadSince >= ttlMs) {
+        const bufPath = stateWriter.getBufferDumpPath(managed.meta.id);
+        try { if (fs.existsSync(bufPath)) fs.unlinkSync(bufPath); } catch { /* ignore */ }
         sessionManager.destroySession(managed.meta.id);
         reaped++;
       }
@@ -620,6 +669,22 @@ async function main(): Promise<void> {
     }
   }, 60 * 60 * 1000); // Every hour
   reapInterval.unref();
+
+  // 8c. Periodic buffer snapshots (every 30s) — survives forced kills / power loss
+  const snapshotInterval = setInterval(() => {
+    const managed = sessionManager.listManagedSessions();
+    const live = managed.filter((m) => m.meta.state !== 'dead');
+    if (live.length === 0) return;
+
+    stateWriter.ensureBufferDir();
+    for (const m of live) {
+      const dumpPath = stateWriter.getBufferDumpPath(m.meta.id);
+      m.ringBuffer.dumpToFile(dumpPath).catch((err) => {
+        log('warn', `Snapshot dump failed for ${m.meta.id}:`, err);
+      });
+    }
+  }, 30_000);
+  snapshotInterval.unref();
 
   // 9. Signal handlers
   const doShutdown = (sig: string) =>
