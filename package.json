@@ -1,42 +1,27 @@
 {
-  "name": "@wong2kim/wmux",
+  "name": "wmux",
   "productName": "wmux",
   "version": "2.0.8",
-  "description": "Windows terminal multiplexer with MCP server for AI agents - run multiple CLI sessions in parallel, control via Claude Code and other AI tools",
+  "description": "Windows terminal multiplexer with MCP server for AI agents",
+  "private": true,
   "main": ".vite/build/index.js",
   "scripts": {
     "postinstall": "node scripts/fix-node-pty.js",
     "start": "npm run build:daemon && npm run build:mcp && electron-forge start",
     "package": "npm run build:daemon && npm run build:mcp && electron-forge package",
     "make": "npm run build:daemon && npm run build:mcp && electron-forge make",
-    "forge-publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
-    "build:cli": "tsc -p tsconfig.cli.json",
     "build:daemon": "tsc -p tsconfig.daemon.json && esbuild dist/daemon/daemon/index.js --bundle --platform=node --outfile=dist/daemon-bundle/index.js --external:node-pty",
     "build:mcp": "tsc -p tsconfig.mcp.json && esbuild dist/mcp/mcp/index.js --bundle --platform=node --outfile=dist/mcp-bundle/index.js --external:electron --external:playwright-core",
-    "cli": "node dist/cli/cli/index.js",
     "mcp": "node dist/mcp/mcp/index.js",
-    "prepublishOnly": "npm run build:daemon && npm run build:cli && npm run build:mcp",
     "test": "vitest run"
   },
-  "bin": {
-    "wmux": "dist/cli/cli/index.js",
-    "wmux-mcp": "dist/mcp/mcp/index.js"
-  },
-  "files": [
-    "dist/cli/",
-    "dist/mcp/",
-    "README.md",
-    "LICENSE"
-  ],
   "keywords": [
     "terminal",
     "multiplexer",
     "mcp",
     "ai-agent",
-    "cli",
     "windows",
-    "claude-code",
     "electron"
   ],
   "author": {
