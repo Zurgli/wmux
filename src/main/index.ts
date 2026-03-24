@@ -53,10 +53,17 @@ if (process.platform === 'win32') {
   const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
   const target = path.basename(process.execPath);
 
-  if (squirrelCmd === '--squirrel-install' || squirrelCmd === '--squirrel-updated') {
+  if (squirrelCmd === '--squirrel-install') {
+    spawn(updateExe, ['--createShortcut=' + target], { detached: true })
+      .on('close', () => {
+        // Auto-launch app after install
+        spawn(process.execPath, [], { detached: true, stdio: 'ignore' }).unref();
+        process.exit(0);
+      });
+    app.quit();
+  } else if (squirrelCmd === '--squirrel-updated') {
     spawn(updateExe, ['--createShortcut=' + target], { detached: true })
       .on('close', () => process.exit(0));
-    // Block further startup — Squirrel will auto-launch after we exit
     app.quit();
   } else if (squirrelCmd === '--squirrel-uninstall') {
     spawn(updateExe, ['--removeShortcut=' + target], { detached: true })
