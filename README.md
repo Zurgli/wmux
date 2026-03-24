@@ -4,7 +4,6 @@
 > Split terminals, browser automation, MCP integration — the only proper way to use AI agents on Windows.
 
 [![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white)](https://github.com/openwong2kim/wmux/releases/latest)
-[![npm](https://img.shields.io/npm/v/@wong2kim/wmux?color=CB3837&logo=npm)](https://www.npmjs.com/package/@wong2kim/wmux)
 [![Electron 41](https://img.shields.io/badge/Electron-41-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/openwong2kim/wmux?style=social)](https://github.com/openwong2kim/wmux)
@@ -37,11 +36,6 @@ Gemini CLI runs tests at the bottom
 **One-liner (PowerShell):**
 ```powershell
 irm https://raw.githubusercontent.com/openwong2kim/wmux/main/install.ps1 | iex
-```
-
-**npm (CLI + MCP server):**
-```bash
-npm install -g @wong2kim/wmux
 ```
 
 ---
@@ -96,7 +90,15 @@ Launch wmux and the MCP server registers automatically. Claude Code just works:
 
 **Multi-agent:** Every browser tool accepts `surfaceId` — each Claude Code session controls its own browser independently.
 
-### 5. Security that actually matters
+### 5. Session persistence — like tmux
+
+Terminal sessions survive app restarts. Close wmux and reopen — your sessions are still there, scrollback intact.
+
+- **App restart:** Daemon keeps PTY processes alive in the background. Reconnects instantly.
+- **Reboot:** Sessions are recovered with saved scrollback and working directory. wmux auto-starts on login.
+- **Auto-update:** Checks for updates via GitHub Releases. Toggle on/off in Settings.
+
+### 6. Security that actually matters
 
 - Token authentication on all IPC pipes
 - SSRF protection — blocks private IPs, `file://`, `javascript:` schemes
@@ -146,7 +148,13 @@ Claude Code, Cursor, Aider, Codex CLI, Gemini CLI, OpenCode, GitHub Copilot CLI
 ### Daemon Process
 - Background session management (survives app restart)
 - Scrollback buffer dump and auto-recovery
+- Windows startup registration (survives reboot)
 - Dead session TTL reaping (24h default)
+
+### Auto-Update
+- Automatic update checks via GitHub Releases
+- Toggle on/off in Settings > General
+- Manual check available in Settings
 
 ### Themes
 Catppuccin Mocha, Monochrome, Sandstone
@@ -176,20 +184,6 @@ English, Korean, Japanese, Chinese
 | `Ctrl+F` | Search terminal |
 | `Ctrl+Shift+X` | Vi copy mode |
 | `F12` | Browser DevTools |
-
----
-
-## CLI
-
-```bash
-wmux workspace list
-wmux workspace create "backend"
-wmux pane split-right
-wmux pane send-text "npm test"
-wmux notify --title "Done" --body "Tests passed"
-wmux browser snapshot
-wmux browser click "#submit-btn"
-```
 
 ---
 
@@ -225,6 +219,7 @@ Electron Main Process
 ├── McpRegistrar (auto-registers MCP in ~/.claude.json)
 ├── WebviewCdpManager (CDP proxy to <webview>)
 ├── DaemonClient (daemon mode connector)
+├── AutoUpdater (GitHub Releases feed)
 └── ToastManager (OS notifications + taskbar flash)
 
 Renderer Process (React 19 + Zustand)
@@ -232,7 +227,7 @@ Renderer Process (React 19 + Zustand)
 ├── Terminal (xterm.js + WebGL + scrollback restore)
 ├── BrowserPanel (webview + Inspector + CDP)
 ├── NotificationPanel
-├── SettingsPanel (workspace reset)
+├── SettingsPanel (auto-update toggle, workspace reset)
 └── Multiview grid
 
 Daemon Process (standalone)
