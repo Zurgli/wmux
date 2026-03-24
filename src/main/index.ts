@@ -41,21 +41,28 @@ if (process.env.WMUX_DISABLE_CDP !== 'true') {
   console.log(`[WinMux] CDP enabled on port ${cdpPort}`);
 }
 
-// Handle Squirrel installer events directly.
-// electron-squirrel-startup spawns Update.exe and waits for 'close' before
-// calling app.quit(), which races with the synchronous app.quit() that follows.
-// This caused the installer to hang. Instead we just exit immediately —
-// Squirrel itself creates/removes shortcuts via Update.exe before launching us.
+// Handle Squirrel installer events.
+// We must run Update.exe to create/remove shortcuts, then exit cleanly.
+// The original electron-squirrel-startup had a race between its async
+// app.quit() callback and our synchronous app.quit(). We avoid that by
+// using spawn + 'close' event and only calling process.exit() once.
 if (process.platform === 'win32') {
   const squirrelCmd = process.argv[1];
-  if (
-    squirrelCmd === '--squirrel-install' ||
-    squirrelCmd === '--squirrel-updated' ||
-    squirrelCmd === '--squirrel-uninstall' ||
-    squirrelCmd === '--squirrel-obsolete'
-  ) {
-    console.log(`[Squirrel] handling ${squirrelCmd}, exiting immediately`);
+  const path = require('path');
+  const { spawn } = require('child_process');
+  const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
+  const target = path.basename(process.execPath);
+
+  if (squirrelCmd === '--squirrel-install' || squirrelCmd === '--squirrel-updated') {
+    spawn(updateExe, ['--createShortcut=' + target], { detached: true })
+      .on('close', () => process.exit(0));
+    // Block further startup — Squirrel will auto-launch after we exit
     app.quit();
+  } else if (squirrelCmd === '--squirrel-uninstall') {
+    spawn(updateExe, ['--removeShortcut=' + target], { detached: true })
+      .on('close', () => process.exit(0));
+    app.quit();
+  } else if (squirrelCmd === '--squirrel-obsolete') {
     process.exit(0);
   }
 }

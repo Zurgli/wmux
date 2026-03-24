@@ -409,12 +409,25 @@ if ($wmuxPath) {
     Write-Host "  [5/5] CLI linked (restart terminal to use 'wmux' command)" -ForegroundColor Yellow
 }
 
+# ---------------------------------------------------------------------------
+# Launch Setup.exe
+# ---------------------------------------------------------------------------
+
+$setupExe = Get-ChildItem "$installDir\out\make\squirrel.windows\x64" -Filter "*.exe" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match 'Setup' } |
+    Select-Object -First 1
+
+if ($setupExe) {
+    Write-Host "  [5/5] Launching installer: $($setupExe.Name)..." -ForegroundColor Green
+    Start-Process -FilePath $setupExe.FullName
+} else {
+    Write-Host "  [5/5] Setup.exe not found — run manually from:" -ForegroundColor Yellow
+    Write-Host "    $installDir\out\make\squirrel.windows\x64\" -ForegroundColor White
+}
+
 Write-Host ""
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Usage:" -ForegroundColor Cyan
-Write-Host "    cd $installDir" -ForegroundColor White
-Write-Host "    npm start              # Run wmux (dev mode)" -ForegroundColor White
-Write-Host "    npm run make           # Build installer (.exe)" -ForegroundColor White
 Write-Host "    wmux --help            # CLI help" -ForegroundColor White
 Write-Host ""
