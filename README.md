@@ -2,24 +2,39 @@
 
 **AI Agent Terminal for Windows**
 
-Run Claude Code, Codex, Gemini CLI side by side — with built-in browser, smart notifications, and MCP integration.
+Run Claude Code, Codex, Gemini CLI side by side — with built-in browser automation, smart notifications, and MCP integration.
 
 Inspired by [cmux](https://github.com/manaflow-ai/cmux) (macOS), wmux brings the same philosophy to Windows: **a primitive, not a solution.** Composable building blocks for multi-agent workflows.
 
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows)
 ![Electron](https://img.shields.io/badge/Electron-41-47848F?logo=electron)
+![npm](https://img.shields.io/npm/v/@wong2kim/wmux?color=CB3837&logo=npm)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
 ## Install
 
-**Download:** [wmux-1.1.2 Setup.exe](https://github.com/openwong2kim/wmux/releases/latest)
+**Download:** [wmux-2.0.0 Setup.exe](https://github.com/openwong2kim/wmux/releases/latest)
 
 Or build from source:
 ```powershell
 irm https://raw.githubusercontent.com/openwong2kim/wmux/main/install.ps1 | iex
 ```
+
+**npm (CLI + MCP server only):**
+```bash
+npm install -g @wong2kim/wmux
+```
+
+---
+
+## What's New in v2.0.0
+
+- **Browser automation via CDP** — Click, fill, type, screenshot directly through Chrome DevTools Protocol. Works with React inputs, CJK text, and controlled components.
+- **Security hardening** — Token auth on all pipes, SSRF protection, input sanitization, randomized CDP ports, memory pressure watchdog.
+- **Workspace reset** — One-click reset in Settings to clean all workspaces and start fresh.
+- **Daemon process** — Background session management with suspend/resume, scrollback persistence, and auto-recovery.
 
 ---
 
@@ -28,7 +43,7 @@ irm https://raw.githubusercontent.com/openwong2kim/wmux/main/install.ps1 | iex
 | Problem | wmux |
 |---------|------|
 | Windows has no cmux | Native Windows terminal multiplexer for AI agents |
-| Agents can't see the browser | Built-in browser with MCP — Claude clicks, fills, evaluates JS |
+| Agents can't control the browser | Built-in browser with CDP — Claude clicks, fills, types, screenshots |
 | "Is it done yet?" | Smart activity-based notifications + taskbar flash |
 | Can't compare agents | Multiview — Ctrl+click workspaces to view side by side |
 | Hard to describe UI elements to LLM | Inspector — click any element, LLM-friendly context copied |
@@ -51,22 +66,19 @@ irm https://raw.githubusercontent.com/openwong2kim/wmux/main/install.ps1 | iex
 - Sidebar with drag-and-drop reordering
 - `Ctrl+1` ~ `Ctrl+9` quick switch
 - **Multiview** — `Ctrl+click` workspaces to split-view them simultaneously
-- `Ctrl+Shift+G` to exit multiview
 - **Session persistence** — workspace layout, tabs, cwd, and terminal scrollback all restored on restart
+- **One-click reset** — Settings > General > Reset to clean all workspaces
 
-### Browser
+### Browser + CDP Automation
 - Built-in browser panel — `Ctrl+Shift+L`
 - Navigation bar, DevTools, back/forward
-- **Element Inspector** — magnifying glass button to inspect elements
-  - Hover to highlight, click to copy LLM-friendly context:
-    ```
-    [Inspector] Google (https://www.google.com/)
-    selector: input.gLFyf
-    <input type="text" name="q" aria-label="Search">
-    text: ""
-    parent: div.RNNXgb > siblings: button"Google Search", button"I'm Feeling Lucky"
-    ```
-  - Paste directly into Claude — it understands the element immediately
+- **Element Inspector** — hover to highlight, click to copy LLM-friendly context
+- **Full CDP automation via MCP:**
+  - Click elements by ref or CSS selector
+  - Fill forms with real keyboard input (handles React, CJK)
+  - Take screenshots via CDP `Page.captureScreenshot`
+  - Evaluate JavaScript with user gesture context
+  - Navigate, go back, press keys
 
 ### Notifications
 - **Activity-based detection** — monitors output throughput, no fragile pattern matching
@@ -83,10 +95,16 @@ wmux automatically registers its MCP server when launched. Claude Code can:
 |------|-------------|
 | `browser_open` | Open a new browser panel |
 | `browser_navigate` | Go to URL |
-| `browser_snapshot` | Get full page HTML |
-| `browser_click` | Click element by CSS selector |
-| `browser_fill` | Fill input field |
-| `browser_eval` | Execute JavaScript |
+| `browser_screenshot` | Capture page as PNG (CDP) |
+| `browser_snapshot` | Get page structure with interactive element refs |
+| `browser_click` | Click element by ref number |
+| `browser_fill` | Fill form fields by ref |
+| `browser_type` | Type text into element (CDP keyboard input) |
+| `browser_press_key` | Press keyboard key (Enter, Tab, etc.) |
+| `browser_evaluate` | Execute JavaScript in page context |
+| `browser_hover` | Hover over element |
+| `browser_select` | Select dropdown options |
+| `browser_scroll_into_view` | Scroll element into viewport |
 | `terminal_read` | Read terminal screen |
 | `terminal_send` | Send text to terminal |
 | `terminal_send_key` | Send key (enter, ctrl+c, etc.) |
@@ -96,11 +114,25 @@ wmux automatically registers its MCP server when launched. Claude Code can:
 
 **Multi-agent:** All browser tools accept `surfaceId` — each Claude Code session controls its own browser independently.
 
+### Security
+- **Token authentication** on all IPC pipes (named pipe + session pipes)
+- **SSRF protection** — URL validation blocks private IPs, file://, javascript: schemes
+- **Input sanitization** — PTY command injection prevention
+- **CDP port randomization** — no fixed debug port
+- **Memory pressure watchdog** — auto-reaps dead sessions at 750MB, blocks new at 1GB
+- **Electron Fuses** — RunAsNode disabled, cookie encryption enabled
+
 ### Agent Status Detection
 Gate-based detection for AI coding agents:
 - Claude Code, Cursor, Aider, Codex CLI, Gemini CLI, OpenCode, GitHub Copilot CLI
-- Detects agent startup → activates monitoring
+- Detects agent startup, monitors activity
 - Critical action warnings (git push --force, rm -rf, DROP TABLE, etc.)
+
+### Daemon Process
+- Background session management (survives app restart)
+- Suspend/resume with scrollback buffer dump
+- Auto-recovery of sessions on daemon restart
+- Dead session TTL reaping (24h default)
 
 ### Themes
 Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, Solarized, One Dark, and more.
@@ -177,36 +209,43 @@ Electron Main Process
 ├── AgentDetector (gate-based agent status)
 ├── SessionManager (atomic save with .bak recovery)
 ├── ScrollbackPersistence (dump/load terminal buffers)
-├── PipeServer (Named Pipe JSON-RPC)
+├── PipeServer (Named Pipe JSON-RPC + token auth)
 ├── McpRegistrar (auto-registers MCP in ~/.claude.json)
+├── WebviewCdpManager (CDP proxy to <webview> via debugger)
 ├── DaemonClient (optional daemon mode connector)
 └── ToastManager (OS notifications + taskbar flash)
 
 Renderer Process (React 19 + Zustand)
 ├── PaneContainer (recursive split layout)
 ├── Terminal (xterm.js + WebGL + scrollback restore)
-├── BrowserPanel (webview + Inspector)
+├── BrowserPanel (webview + Inspector + CDP)
 ├── NotificationPanel
+├── SettingsPanel (workspace reset)
 └── Multiview grid
 
 Daemon Process (optional, standalone)
 ├── DaemonSessionManager (ConPTY lifecycle)
 ├── RingBuffer (circular scrollback buffer)
 ├── StateWriter (session suspend/resume)
-└── DaemonPipeServer (Named Pipe RPC)
+├── ProcessMonitor (external process watchdog)
+├── Watchdog (memory pressure escalation)
+└── DaemonPipeServer (Named Pipe RPC + token auth)
 
 MCP Server (stdio)
-└── Bridges Claude Code ↔ wmux via Named Pipe RPC
+├── PlaywrightEngine (CDP connection, fast-fail)
+├── CDP RPC fallback (browser.screenshot, browser.evaluate, etc.)
+└── Bridges Claude Code <-> wmux via Named Pipe RPC
 ```
 
 ---
 
 ## Acknowledgments
 
-- [cmux](https://github.com/manaflow-ai/cmux) — The macOS AI agent terminal that inspired wmux. Same philosophy: primitives over prescriptive workflows.
+- [cmux](https://github.com/manaflow-ai/cmux) — The macOS AI agent terminal that inspired wmux
 - [xterm.js](https://xtermjs.org/) — Terminal rendering
 - [node-pty](https://github.com/microsoft/node-pty) — Pseudo-terminal
 - [Electron](https://www.electronjs.org/) — Desktop framework
+- [Playwright](https://playwright.dev/) — Browser automation engine
 
 ---
 
