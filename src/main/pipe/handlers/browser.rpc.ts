@@ -194,10 +194,8 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
       surfaceId: t.surfaceId,
       webContentsId: t.webContentsId,
       targetId: t.targetId,
-      wsUrl: t.wsUrl,
     }));
-    const cdpPort: number = webviewCdpManager.getCdpPort();
-    return { cdpPort, targets };
+    return { targets };
   });
 
   /**
@@ -212,7 +210,6 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
       try {
         const target = await webviewCdpManager.waitForTarget(surfaceId, 5000);
         return {
-          webSocketDebuggerUrl: target.wsUrl,
           targetId: target.targetId,
           surfaceId: target.surfaceId,
         };
@@ -225,7 +222,6 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
     if (!target) return { error: 'no active browser webview' };
 
     return {
-      webSocketDebuggerUrl: target.wsUrl,
       targetId: target.targetId,
       surfaceId: target.surfaceId,
     };

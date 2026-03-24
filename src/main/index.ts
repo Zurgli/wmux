@@ -1,15 +1,7 @@
-import * as _fs from 'fs';
-const _logFile = 'D:/wykim/8. coding/26/2.wmux-basic/electron-debug.log';
-function _dbg(msg: string) { try { _fs.appendFileSync(_logFile, new Date().toISOString() + ' ' + msg + '\n'); } catch {} }
-_dbg('STARTUP argv=' + JSON.stringify(process.argv));
-process.on('exit', (code) => { _dbg('EXIT code=' + code); });
-
 process.on('unhandledRejection', (reason) => {
-  _dbg('unhandledRejection: ' + String(reason));
   console.error('[Main] Unhandled rejection:', reason);
 });
 process.on('uncaughtException', (err) => {
-  _dbg('uncaughtException: ' + String(err));
   console.error('[Main] Uncaught exception:', err);
 });
 
@@ -40,14 +32,14 @@ import { ensureDaemon } from './daemon/launcher';
 app.commandLine.appendSwitch('lang', 'en-US');
 
 // CDP (Chrome DevTools Protocol) remote debugging
+let cdpPort = 0;
 if (process.env.WMUX_DISABLE_CDP !== 'true') {
-  const cdpPort = Number(process.env.WMUX_CDP_PORT) || 18800;
-  if (cdpPort >= 18800 && cdpPort <= 18899) {
-    app.commandLine.appendSwitch('remote-debugging-port', cdpPort.toString());
-    console.log(`[WinMux] CDP enabled on port ${cdpPort}`);
-  } else {
-    console.warn(`[WinMux] CDP port ${cdpPort} out of range (18800-18899), CDP disabled`);
-  }
+  // Randomize port within range to prevent predictable scanning
+  const basePort = 18800;
+  const range = 100;
+  cdpPort = basePort + Math.floor(Math.random() * range);
+  app.commandLine.appendSwitch('remote-debugging-port', cdpPort.toString());
+  console.log(`[WinMux] CDP enabled on port ${cdpPort}`);
 }
 
 console.log('[DEBUG] started =', started, 'argv =', process.argv);
@@ -79,7 +71,6 @@ const autoUpdater = new AutoUpdater(() => mainWindow);
 const rpcRouter = new RpcRouter();
 const pipeServer = new PipeServer(rpcRouter);
 const mcpRegistrar = new McpRegistrar();
-const cdpPort = Number(process.env.WMUX_CDP_PORT) || 18800;
 const webviewCdpManager = new WebviewCdpManager(cdpPort);
 
 // Daemon client — initialized on app ready, used if daemon is available
