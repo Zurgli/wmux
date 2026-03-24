@@ -51,7 +51,7 @@
   --bg-base-rgb: 8, 8, 8;
 }
 
-[data-theme="claude"] {
+[data-theme="sandstone"] {
   --bg-base: #F5F0E8;
   --bg-mantle: #EDE6D9;
   --bg-surface: #E0D8CA;
