@@ -88,11 +88,18 @@ function findNodePath(): string {
 
 function spawnDaemon(): Promise<number> {
   return new Promise((resolve, reject) => {
-    // Find daemon script — use app.getAppPath() which gives the real project root
+    // Find daemon script
+    // In dev: app.getAppPath() = project root → dist/daemon/daemon/index.js
+    // In production: extraResource → process.resourcesPath/daemon/daemon/index.js
     const projectRoot = app.getAppPath();
-    console.log(`[launcher] projectRoot = ${projectRoot}`);
+    const resourcesRoot = process.resourcesPath;
+    console.log(`[launcher] projectRoot = ${projectRoot}, resourcesPath = ${resourcesRoot}`);
 
     const candidates = [
+      // Production (extraResource)
+      path.join(resourcesRoot, 'daemon', 'daemon', 'index.js'),
+      path.join(resourcesRoot, 'daemon', 'index.js'),
+      // Development
       path.join(projectRoot, 'dist', 'daemon', 'daemon', 'index.js'),
       path.join(projectRoot, 'dist', 'daemon', 'index.js'),
     ];
