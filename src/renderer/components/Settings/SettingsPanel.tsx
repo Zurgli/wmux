@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useStore } from '../../stores';
 import { LOCALE_OPTIONS, type Locale } from '../../i18n';
 import { useT } from '../../hooks/useT';
@@ -6,7 +6,6 @@ import { THEME_OPTIONS } from '../../themes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type UpdateStatus = 'idle' | 'checking' | 'up-to-date' | 'available' | 'error';
 type TabId = 'general' | 'appearance' | 'notifications' | 'shortcuts' | 'about';
 
 // ─── Icon components ──────────────────────────────────────────────────────────
@@ -287,17 +286,7 @@ function disposePaneTree(pane: { type: string; surfaces?: Array<{ ptyId?: string
 
 // ─── Tab content components ───────────────────────────────────────────────────
 
-function TabGeneral({
-  updateStatus,
-  updateMessage,
-  onCheckUpdate,
-  onInstallUpdate,
-}: {
-  updateStatus: UpdateStatus;
-  updateMessage: string;
-  onCheckUpdate: () => void;
-  onInstallUpdate: () => void;
-}) {
+function TabGeneral() {
   const t = useT();
   const locale = useStore((s) => s.locale);
   const setLocale = useStore((s) => s.setLocale);
@@ -306,16 +295,6 @@ function TabGeneral({
   const setDefaultShell = useStore((s) => s.setDefaultShell);
   const scrollbackLines = useStore((s) => s.scrollbackLines);
   const setScrollbackLines = useStore((s) => s.setScrollbackLines);
-
-  const updateButtonLabel = () => {
-    switch (updateStatus) {
-      case 'checking':   return t('settings.checking');
-      case 'up-to-date': return t('settings.upToDate');
-      case 'available':  return t('settings.installUpdate');
-      case 'error':      return t('settings.retryCheck');
-      default:           return t('settings.checkUpdate');
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -372,38 +351,17 @@ function TabGeneral({
         >
           <div>
             <p className="text-sm text-[color:var(--text-main)]">{t('settings.wmuxUpdates')}</p>
-            {updateStatus === 'up-to-date' && (
-              <p className="text-[11px] text-[color:var(--accent-green)] mt-0.5">{t('settings.upToDate')}</p>
-            )}
-            {updateStatus === 'available' && (
-              <p className="text-[11px] text-[color:var(--accent-blue)] mt-0.5">{updateMessage || t('settings.updateAvailable')}</p>
-            )}
-            {updateStatus === 'error' && (
-              <p className="text-[11px] text-[color:var(--accent-red)] mt-0.5">{updateMessage || t('settings.updateFailed')}</p>
-            )}
-            {updateStatus === 'idle' && (
-              <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5">{t('settings.lastCheckedNever')}</p>
-            )}
+            <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5">v{__APP_VERSION__}</p>
           </div>
-          <button
-            onClick={updateStatus === 'available' ? onInstallUpdate : onCheckUpdate}
-            disabled={updateStatus === 'checking'}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-3"
-            style={{
-              backgroundColor: updateStatus === 'available' ? 'var(--accent-green)' : 'var(--bg-surface)',
-              color: updateStatus === 'available' ? 'var(--bg-base)' : 'var(--text-main)',
-            }}
+          <a
+            href="https://github.com/openwong2kim/wmux/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ml-3"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)' }}
           >
-            {updateStatus === 'checking'
-              ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full" />
-                  {t('settings.checking')}
-                </span>
-              )
-              : updateButtonLabel()
-            }
-          </button>
+            {t('settings.checkUpdate')}
+          </a>
         </div>
       </div>
 
@@ -735,7 +693,7 @@ function TabAbout() {
             className="text-xs font-mono px-2 py-0.5 rounded"
             style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--accent-blue)', border: '1px solid var(--bg-overlay)' }}
           >
-            v2.0.0
+            v{__APP_VERSION__}
           </span>
           <p className="text-[11px] text-[color:var(--text-muted)] mt-1">
             {t('settings.aboutTagline')}
@@ -789,8 +747,6 @@ export default function SettingsPanel() {
   const setVisible = useStore((s) => s.setSettingsPanelVisible);
 
   const [activeTab, setActiveTab] = useState<TabId>('general');
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
-  const [updateMessage, setUpdateMessage] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
@@ -800,35 +756,6 @@ export default function SettingsPanel() {
     { id: 'shortcuts',     label: t('settings.tabShortcuts'),     icon: '⌨' },
     { id: 'about',         label: t('settings.tabAbout'),         icon: 'ℹ' },
   ];
-
-  // Listen for update events from main process
-  useEffect(() => {
-    const unsubAvailable = window.electronAPI.updater.onUpdateAvailable((data) => {
-      if (data.status === 'downloaded') {
-        setUpdateStatus('available');
-        setUpdateMessage(data.releaseName ?? t('settings.updateReady'));
-      } else {
-        setUpdateStatus('available');
-        setUpdateMessage(data.releaseName ?? t('settings.updateAvailable'));
-      }
-    });
-
-    const unsubNotAvail = window.electronAPI.updater.onUpdateNotAvailable(() => {
-      setUpdateStatus('up-to-date');
-      setUpdateMessage('');
-    });
-
-    const unsubError = window.electronAPI.updater.onUpdateError((data) => {
-      setUpdateStatus('error');
-      setUpdateMessage(data.message ?? t('settings.unknownError'));
-    });
-
-    return () => {
-      unsubAvailable();
-      unsubNotAvail();
-      unsubError();
-    };
-  }, []);
 
   // Close on Escape
   useEffect(() => {
@@ -842,24 +769,6 @@ export default function SettingsPanel() {
     window.addEventListener('keydown', handler, { capture: true });
     return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [visible, setVisible]);
-
-  const handleCheckUpdate = useCallback(async () => {
-    setUpdateStatus('checking');
-    setUpdateMessage('');
-    try {
-      const result = await window.electronAPI.updater.checkForUpdates();
-      if (result.status === 'not-available') {
-        setUpdateStatus('up-to-date');
-      }
-    } catch {
-      setUpdateStatus('error');
-      setUpdateMessage(t('settings.checkFailed'));
-    }
-  }, []);
-
-  const handleInstallUpdate = useCallback(async () => {
-    await window.electronAPI.updater.installUpdate();
-  }, []);
 
   if (!visible) return null;
 
@@ -935,14 +844,7 @@ export default function SettingsPanel() {
 
           {/* Right content */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
-            {activeTab === 'general' && (
-              <TabGeneral
-                updateStatus={updateStatus}
-                updateMessage={updateMessage}
-                onCheckUpdate={handleCheckUpdate}
-                onInstallUpdate={handleInstallUpdate}
-              />
-            )}
+            {activeTab === 'general' && <TabGeneral />}
             {activeTab === 'appearance'    && <TabAppearance />}
             {activeTab === 'notifications' && <TabNotifications />}
             {activeTab === 'shortcuts'     && <TabShortcuts />}

@@ -1,6 +1,17 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { sendRequest } from '../client';
 import { printResult, printError } from '../utils';
 import type { RpcResponse } from '../../shared/rpc';
+
+function getFallbackVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 interface IdentifyResult {
   app: string;
@@ -24,7 +35,7 @@ export async function handleSystem(
         if (!response.ok) { printError(response); return; }
         const info = response.result as IdentifyResult;
         console.log(`app:      ${info?.app ?? 'wmux'}`);
-        console.log(`version:  ${info?.version ?? '2.0.0'}`);
+        console.log(`version:  ${info?.version ?? getFallbackVersion()}`);
         console.log(`platform: ${info?.platform ?? process.platform}`);
       }
       break;

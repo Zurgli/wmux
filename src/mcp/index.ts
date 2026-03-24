@@ -13,10 +13,21 @@ import { registerWaitTools } from './playwright/tools/wait';
 import { registerFileTools } from './playwright/tools/file';
 import { registerUtilityTools } from './playwright/tools/utility';
 import { registerExtractionTools } from './playwright/tools/extraction';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+function getVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 const server = new McpServer({
   name: 'wmux',
-  version: '2.0.0',
+  version: getVersion(),
 });
 
 // Helper: wrap an RPC call as an MCP tool result
