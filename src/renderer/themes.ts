@@ -1,4 +1,4 @@
-export type ThemeId = 'catppuccin' | 'monochrome' | 'claude';
+export type ThemeId = 'catppuccin' | 'monochrome' | 'sandstone';
 
 export interface XtermThemeColors {
   background: string;
@@ -68,7 +68,7 @@ export const XTERM_THEMES: Record<ThemeId, XtermThemeColors> = {
     brightCyan: '#c8c8c8',
     brightWhite: '#999999',
   },
-  claude: {
+  sandstone: {
     background: '#F5F0E8',
     foreground: '#3D3429',
     cursor: '#3D3429',
@@ -95,5 +95,5 @@ export const XTERM_THEMES: Record<ThemeId, XtermThemeColors> = {
 export const THEME_OPTIONS: Array<{ value: ThemeId; label: string }> = [
   { value: 'catppuccin', label: 'Catppuccin Mocha' },
   { value: 'monochrome', label: 'Monochrome' },
-  { value: 'claude', label: 'Claude' },
+  { value: 'sandstone', label: 'Sandstone' },
 ];
