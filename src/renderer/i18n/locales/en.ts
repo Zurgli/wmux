@@ -84,6 +84,8 @@ export const en = {
   'settings.sound': 'Notification Sound',
   'settings.soundOn': 'On',
   'settings.soundOff': 'Off',
+  'settings.autoUpdate': 'Auto-update',
+  'settings.autoUpdateDesc': 'Automatically check for and install updates',
   'settings.checkUpdate': 'Check for updates',
   'settings.checking': 'Checking...',
   'settings.upToDate': 'Up to date',

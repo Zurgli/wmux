@@ -295,6 +295,12 @@ function TabGeneral() {
   const setDefaultShell = useStore((s) => s.setDefaultShell);
   const scrollbackLines = useStore((s) => s.scrollbackLines);
   const setScrollbackLines = useStore((s) => s.setScrollbackLines);
+  const autoUpdateEnabled = useStore((s) => s.autoUpdateEnabled);
+  const storeSetAutoUpdate = useStore((s) => s.setAutoUpdateEnabled);
+  const setAutoUpdateEnabled = (enabled: boolean) => {
+    storeSetAutoUpdate(enabled);
+    window.electronAPI.settings.setAutoUpdateEnabled(enabled);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -343,8 +349,15 @@ function TabGeneral() {
       </div>
 
       {/* Updates */}
-      <div>
+      <div className="flex flex-col gap-2">
         <SectionLabel label={t('settings.updates')} />
+        <SettingRow label={t('settings.autoUpdate')} description={t('settings.autoUpdateDesc')}>
+          <Toggle
+            checked={autoUpdateEnabled}
+            onChange={setAutoUpdateEnabled}
+            label={t('settings.autoUpdate')}
+          />
+        </SettingRow>
         <div
           className="px-3 py-2.5 rounded-lg flex items-center justify-between"
           style={{ backgroundColor: 'var(--bg-mantle)', border: '1px solid var(--bg-surface)' }}

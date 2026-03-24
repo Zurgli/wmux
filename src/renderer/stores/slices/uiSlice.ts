@@ -78,6 +78,10 @@ export interface UISlice {
   toggleFileTree: () => void;
   setFileTreeVisible: (visible: boolean) => void;
 
+  // ─── Auto-update ──────────────────────────────────────────────────────
+  autoUpdateEnabled: boolean;
+  setAutoUpdateEnabled: (enabled: boolean) => void;
+
 }
 
 export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]], [], UISlice> = (set) => ({
@@ -289,6 +293,13 @@ export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]],
 
   setFileTreeVisible: (visible) => set((state) => {
     state.fileTreeVisible = visible;
+  }),
+
+  // ─── Auto-update ──────────────────────────────────────────────────────
+  autoUpdateEnabled: true,
+
+  setAutoUpdateEnabled: (enabled) => set((state) => {
+    state.autoUpdateEnabled = enabled;
   }),
 
 });

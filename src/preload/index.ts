@@ -35,6 +35,7 @@ const electronAPI = {
   },
   settings: {
     setToastEnabled: (enabled: boolean) => ipcRenderer.send(IPC.TOAST_ENABLED, enabled),
+    setAutoUpdateEnabled: (enabled: boolean) => ipcRenderer.send(IPC.AUTO_UPDATE_ENABLED, enabled),
   },
   notification: {
     onNew: (callback: (ptyId: string, data: { type: string; title: string; body: string }) => void) => {

@@ -84,6 +84,8 @@ export const ko = {
   'settings.sound': '알림 소리',
   'settings.soundOn': '켜기',
   'settings.soundOff': '끄기',
+  'settings.autoUpdate': '자동 업데이트',
+  'settings.autoUpdateDesc': '자동으로 업데이트를 확인하고 설치합니다',
   'settings.checkUpdate': '업데이트 확인',
   'settings.checking': '확인 중...',
   'settings.upToDate': '최신 버전',

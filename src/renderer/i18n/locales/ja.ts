@@ -84,6 +84,8 @@ export const ja = {
   'settings.sound': '通知音',
   'settings.soundOn': 'オン',
   'settings.soundOff': 'オフ',
+  'settings.autoUpdate': '自動アップデート',
+  'settings.autoUpdateDesc': '自動的にアップデートを確認してインストールします',
   'settings.checkUpdate': 'アップデートを確認',
   'settings.checking': '確認中...',
   'settings.upToDate': '最新バージョン',

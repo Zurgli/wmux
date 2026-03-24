@@ -25,22 +25,22 @@ export class AutoUpdater {
   private checkTimer: ReturnType<typeof setInterval> | null = null;
   private getWindow: () => BrowserWindow | null;
   private isChecking = false;
+  private enabled = true;
 
   constructor(getWindow: () => BrowserWindow | null) {
     this.getWindow = getWindow;
   }
 
   start(): void {
+    this.registerIpcHandlers();
+
     if (!FEED_URL || process.env.NODE_ENV === 'development') {
-      // 업데이트 서버가 설정되지 않았거나 개발 모드 — 초기화 스킵
-      this.registerIpcHandlers();
       return;
     }
 
     try {
       autoUpdater.setFeedURL({ url: FEED_URL });
       this.setupAutoUpdaterEvents();
-      this.registerIpcHandlers();
 
       // 앱 시작 후 15초 뒤 첫 번째 확인 (시작 부하 방지)
       setTimeout(() => this.check(), 15_000);
@@ -52,6 +52,11 @@ export class AutoUpdater {
     }
   }
 
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    console.log(`[AutoUpdater] ${enabled ? 'Enabled' : 'Disabled'}`);
+  }
+
   stop(): void {
     if (this.checkTimer !== null) {
       clearInterval(this.checkTimer);
@@ -59,12 +64,13 @@ export class AutoUpdater {
     }
     autoUpdater.removeAllListeners();  // prevent listener accumulation
     // IPC 핸들러 정리
+    ipcMain.removeAllListeners(IPC.AUTO_UPDATE_ENABLED);
     ipcMain.removeHandler(IPC.UPDATE_CHECK);
     ipcMain.removeHandler(IPC.UPDATE_INSTALL);
   }
 
   private check(): void {
-    if (this.isChecking) return;
+    if (!this.enabled || this.isChecking) return;
     try {
       this.isChecking = true;
       autoUpdater.checkForUpdates();
@@ -105,6 +111,11 @@ export class AutoUpdater {
   }
 
   private registerIpcHandlers(): void {
+    // Renderer → Main: auto-update toggle
+    ipcMain.on(IPC.AUTO_UPDATE_ENABLED, (_event, enabled: boolean) => {
+      this.setEnabled(enabled);
+    });
+
     // Renderer가 수동으로 업데이트 확인 요청
     ipcMain.handle(IPC.UPDATE_CHECK, () => {
       if (!FEED_URL || process.env.NODE_ENV === 'development') {

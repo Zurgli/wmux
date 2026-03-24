@@ -84,6 +84,8 @@ export const zh = {
   'settings.sound': '通知声音',
   'settings.soundOn': '开启',
   'settings.soundOff': '关闭',
+  'settings.autoUpdate': '自动更新',
+  'settings.autoUpdateDesc': '自动检查并安装更新',
   'settings.checkUpdate': '检查更新',
   'settings.checking': '检查中...',
   'settings.upToDate': '已是最新版本',

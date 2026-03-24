@@ -32,6 +32,7 @@ export const IPC = {
   UPDATE_INSTALL: 'update:install',
   // Settings sync (renderer → main)
   TOAST_ENABLED: 'settings:toast-enabled',
+  AUTO_UPDATE_ENABLED: 'settings:auto-update-enabled',
   // Agent critical action approval
   APPROVAL_REQUEST: 'approval:request',
   // File system
