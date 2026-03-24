@@ -149,7 +149,7 @@ Claude Code, Cursor, Aider, Codex CLI, Gemini CLI, OpenCode, GitHub Copilot CLI
 - Dead session TTL reaping (24h default)
 
 ### Themes
-Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, Solarized, One Dark, and more.
+Catppuccin Mocha, Monochrome, Sandstone
 
 ### i18n
 English, Korean, Japanese, Chinese
