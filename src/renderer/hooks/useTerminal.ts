@@ -256,38 +256,12 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       window.electronAPI.scrollback.load(scrollbackFile).then((content) => {
         if (content && terminalRef.current === terminal) {
           terminal.write(content);
-          // Add a visual separator and newline so new PTY output appears below
           terminal.write('\r\n\x1b[90m--- session restored ---\x1b[0m\r\n');
-          // PowerShell redraws the entire screen on startup (ESC[H + banner).
-          // Suppress ALL output until we see the first prompt indicator (PS, >, $),
-          // then switch to normal passthrough.
-          let promptDetected = false;
-          const suppressUntil = Date.now() + 5000; // safety timeout
-          const promptPattern = /PS [A-Z]:\\|>\s*$|\$\s*$/;
-          removeDataListener = window.electronAPI.pty.onData((id, data) => {
-            if (id !== ptyId) return;
-            if (promptDetected) {
-              terminal.write(data);
-              return;
-            }
-            // Check if this chunk contains the first prompt
-            const plain = data.replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '');
-            if (promptPattern.test(plain) || Date.now() >= suppressUntil) {
-              promptDetected = true;
-              // Write just a fresh prompt line
-              terminal.write('\r\n');
-              terminal.write(data);
-            }
-            // else: suppress pre-prompt output (banner, clear screen, etc.)
-          });
-          removeExitListener = window.electronAPI.pty.onExit((id, exitCode) => {
-            if (id === ptyId) {
-              terminal.writeln(`\r\n${t('terminal.exitedBracket', { code: exitCode })}`);
-            }
-          });
-        } else {
-          connectPty();
         }
+        // Always connect PTY directly — no output suppression.
+        // Previous suppress logic blocked all output (including user input echo)
+        // until a prompt pattern was detected, making the terminal appear frozen.
+        connectPty();
       }).catch(() => { connectPty(); });
     } else {
       connectPty();
