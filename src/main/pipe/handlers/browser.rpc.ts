@@ -195,7 +195,8 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
       webContentsId: t.webContentsId,
       targetId: t.targetId,
     }));
-    return { targets };
+    const cdpPort: number = webviewCdpManager.getCdpPort();
+    return { cdpPort, targets };
   });
 
   /**
