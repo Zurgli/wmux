@@ -14,9 +14,9 @@
 import { autoUpdater, type BrowserWindow, ipcMain } from 'electron';
 import { IPC } from '../../shared/constants';
 
-// GitHub Releases 또는 별도 업데이트 서버 URL
-// 예: https://update.winmux.app/update/win32/${version}
-const FEED_URL = '';
+// Squirrel.Windows reads RELEASES file + .nupkg directly from GitHub Releases.
+// No separate update server needed.
+const FEED_URL = 'https://github.com/openwong2kim/wmux/releases/latest';
 
 // 업데이트 자동 확인 간격 (30분)
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
