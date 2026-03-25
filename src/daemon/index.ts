@@ -709,16 +709,18 @@ async function main(): Promise<void> {
     if (live.length === 0) return;
 
     stateWriter.ensureBufferDir();
-    for (const m of live) {
+    const dumps = live.map((m) => {
       const dumpPath = stateWriter.getBufferDumpPath(m.meta.id);
-      m.ringBuffer.dumpToFile(dumpPath).catch((err) => {
+      return m.ringBuffer.dumpToFile(dumpPath).catch((err) => {
         log('warn', `Snapshot dump failed for ${m.meta.id}:`, err);
       });
-    }
+    });
 
-    // Save session metadata alongside buffer snapshots
-    const state = buildState(sessionManager);
-    stateWriter.saveImmediate(state);
+    // Save session metadata only after all buffer dumps complete (atomicity)
+    Promise.all(dumps).then(() => {
+      const state = buildState(sessionManager);
+      stateWriter.saveImmediate(state);
+    });
   }, 30_000);
   snapshotInterval.unref();
 

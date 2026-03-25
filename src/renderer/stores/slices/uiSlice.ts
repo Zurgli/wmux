@@ -78,6 +78,27 @@ export interface UISlice {
   toggleFileTree: () => void;
   setFileTreeVisible: (visible: boolean) => void;
 
+  // ─── Company mode ──────────────────────────────────────────────────────
+  sidebarMode: 'workspaces' | 'company';
+  setSidebarMode: (mode: 'workspaces' | 'company') => void;
+
+  company: { name: string; totalCostEstimate: number } | null;
+  setCompany: (company: { name: string; totalCostEstimate: number } | null) => void;
+
+  memberCosts: Record<string, number>;
+  setMemberCosts: (costs: Record<string, number>) => void;
+
+  sessionStartTime: number | null;
+  setSessionStartTime: (time: number | null) => void;
+
+  companyViewVisible: boolean;
+  toggleCompanyView: () => void;
+  setCompanyViewVisible: (visible: boolean) => void;
+
+  messageFeedVisible: boolean;
+  toggleMessageFeed: () => void;
+  setMessageFeedVisible: (visible: boolean) => void;
+
   // ─── Auto-update ──────────────────────────────────────────────────────
   autoUpdateEnabled: boolean;
   setAutoUpdateEnabled: (enabled: boolean) => void;
@@ -294,6 +315,27 @@ export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]],
   setFileTreeVisible: (visible) => set((state) => {
     state.fileTreeVisible = visible;
   }),
+
+  // ─── Company mode ──────────────────────────────────────────────────────
+  sidebarMode: 'workspaces',
+  setSidebarMode: (mode) => set((state) => { state.sidebarMode = mode; }),
+
+  company: null,
+  setCompany: (company) => set((state) => { state.company = company; }),
+
+  memberCosts: {},
+  setMemberCosts: (costs) => set((state) => { state.memberCosts = costs; }),
+
+  sessionStartTime: null,
+  setSessionStartTime: (time) => set((state) => { state.sessionStartTime = time; }),
+
+  companyViewVisible: false,
+  toggleCompanyView: () => set((state) => { state.companyViewVisible = !state.companyViewVisible; }),
+  setCompanyViewVisible: (visible) => set((state) => { state.companyViewVisible = visible; }),
+
+  messageFeedVisible: false,
+  toggleMessageFeed: () => set((state) => { state.messageFeedVisible = !state.messageFeedVisible; }),
+  setMessageFeedVisible: (visible) => set((state) => { state.messageFeedVisible = visible; }),
 
   // ─── Auto-update ──────────────────────────────────────────────────────
   autoUpdateEnabled: true,

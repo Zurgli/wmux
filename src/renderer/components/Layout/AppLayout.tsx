@@ -76,30 +76,6 @@ function dumpScrollbackBuffersSync(): Map<string, boolean> {
   return dumped;
 }
 
-/** Async version — awaits all IPC dump calls before returning.
- *  Used by periodic save to guarantee files are written before session.json. */
-async function dumpScrollbackBuffersAsync(): Promise<Map<string, boolean>> {
-  const dumped = new Map<string, boolean>();
-  const promises: Promise<void>[] = [];
-  const state = useStore.getState();
-  for (const ws of state.workspaces) {
-    const surfaces = collectTerminalSurfaces(ws.rootPane);
-    for (const surface of surfaces) {
-      if (!surface.ptyId) continue;
-      const terminal = terminalRegistry.get(surface.ptyId);
-      if (!terminal) continue;
-      const content = serializeTerminalBuffer(terminal);
-      if (!content) continue;
-      dumped.set(surface.id, true);
-      promises.push(
-        window.electronAPI.scrollback.dump(surface.id, content).catch(() => {}),
-      );
-    }
-  }
-  await Promise.all(promises);
-  return dumped;
-}
-
 /** Deep-clone pane tree, setting scrollbackFile on dumped surfaces */
 function cloneWithScrollback(pane: Pane, dumped: Map<string, boolean>): Pane {
   if (pane.type === 'leaf') {
@@ -131,7 +107,7 @@ function buildSessionData(dumped: Map<string, boolean>): SessionData {
     sidebarMode: state.sidebarMode,
     company: companySafe,
     memberCosts: state.memberCosts,
-    sessionStartTime: state.sessionStartTime,
+    sessionStartTime: state.sessionStartTime ?? undefined,
     // User preferences
     theme: state.theme,
     locale: state.locale,
@@ -169,6 +145,7 @@ export default function AppLayout() {
   // ─── File drop — handled in preload where File.path is accessible ──────
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
+  const sessionLoadedRef = useRef(false);
 
   useEffect(() => {
     // File drop via preload onFileDrop (reliable cross-platform)
@@ -224,8 +201,12 @@ export default function AppLayout() {
   // 앱 시작 시 세션 복원
   useEffect(() => {
     window.electronAPI.session.load().then(async (saved: SessionData | null) => {
-      if (!saved) return;
+      if (!saved) {
+        sessionLoadedRef.current = true;
+        return;
+      }
       useStore.getState().loadSession(saved);
+      sessionLoadedRef.current = true;
 
       // Reconcile saved PTY IDs with daemon's active sessions.
       // If a saved ptyId exists in the daemon, reconnect to it.
@@ -289,22 +270,13 @@ export default function AppLayout() {
   // Awaits scrollback dump completion before saving session.json to guarantee
   // files referenced in session data actually exist on disk.
   useEffect(() => {
-    let active = true;
-    let saving = false;
-    const interval = setInterval(async () => {
-      if (!active || saving) return;
-      saving = true;
-      try {
-        const dumped = await dumpScrollbackBuffersAsync();
-        if (active) {
-          const data = buildSessionData(dumped);
-          window.electronAPI.session.save(data);
-        }
-      } finally {
-        saving = false;
-      }
+    const interval = setInterval(() => {
+      if (!sessionLoadedRef.current) return;
+      const dumped = dumpScrollbackBuffersSync();
+      const data = buildSessionData(dumped);
+      window.electronAPI.session.save(data);
     }, 5_000);
-    return () => { active = false; clearInterval(interval); };
+    return () => { clearInterval(interval); };
   }, []);
 
   // Auto-create initial surface for empty leaf panes
