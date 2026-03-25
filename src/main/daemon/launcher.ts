@@ -135,25 +135,48 @@ function spawnDaemon(): Promise<number> {
 
     console.log(`[launcher] Daemon spawned with PID: ${child.pid}`);
 
-    // Wait for daemon to be ready
+    // Wait for daemon to be ready.
+    // Only ping once the daemon-pipe file exists — this means the daemon has
+    // finished starting its pipe server and written the actual pipe name.
+    // Without this guard, early polls connect to a zombie Windows named pipe
+    // left by a crashed predecessor, wasting time on 1s timeouts.
     let attempts = 0;
     const maxAttempts = 75; // 75 * 200ms = 15 seconds
+    let pinging = false; // prevent concurrent pings
 
     const poll = setInterval(async () => {
       attempts++;
+      if (pinging) return; // previous ping still in-flight
 
-      // Read pipe name and auth token from files
       const wmuxDir = getWmuxDir();
-      const pipeName = readPipeNameFromFile(wmuxDir) || getDaemonPipeName();
-      const token = readDaemonAuthToken();
+      const pipeName = readPipeNameFromFile(wmuxDir);
 
-      if (token) {
-        const alive = await pingDaemon(pipeName, token, 1000);
-        if (alive) {
+      // Wait for daemon to write its pipe name file before attempting ping
+      if (!pipeName) {
+        if (attempts >= maxAttempts) {
           clearInterval(poll);
-          resolve(child.pid!);
-          return;
+          reject(new Error('Daemon spawned but pipe name file not created after 15 seconds'));
         }
+        return;
+      }
+
+      const token = readDaemonAuthToken();
+      if (!token) {
+        if (attempts >= maxAttempts) {
+          clearInterval(poll);
+          reject(new Error('Daemon spawned but auth token not found after 15 seconds'));
+        }
+        return;
+      }
+
+      pinging = true;
+      const alive = await pingDaemon(pipeName, token, 2000);
+      pinging = false;
+
+      if (alive) {
+        clearInterval(poll);
+        resolve(child.pid!);
+        return;
       }
 
       if (attempts >= maxAttempts) {
@@ -197,8 +220,14 @@ export async function ensureDaemon(): Promise<DaemonInfo> {
     }
   }
 
-  // 3. Spawn new daemon
-  console.log('[launcher] No running daemon found. Spawning...');
+  // 3. Clean stale files before spawning — prevents new daemon from seeing
+  //    zombie lock/pipe state left by a crashed predecessor.
+  console.log('[launcher] No running daemon found. Cleaning stale files...');
+  const staleFiles = ['daemon.lock', 'daemon.pid', 'daemon-pipe'];
+  for (const name of staleFiles) {
+    try { fs.unlinkSync(path.join(wmuxDir, name)); } catch { /* ignore */ }
+  }
+
   const pid = await spawnDaemon();
 
   // Read connection info after spawn

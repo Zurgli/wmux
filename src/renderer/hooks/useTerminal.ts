@@ -262,11 +262,11 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
       removeDataListener = window.electronAPI.pty.onData((id, data) => {
         if (id !== ptyId) return;
-        if (scrollbackLoaded) {
-          terminal.write(data);
-        } else {
+        if (!scrollbackLoaded) {
           pendingData.push(data);
+          return;
         }
+        terminal.write(data);
       });
 
       removeExitListener = window.electronAPI.pty.onExit((id, exitCode) => {
@@ -278,9 +278,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       window.electronAPI.scrollback.load(scrollbackFile).then((content) => {
         if (content && terminalRef.current === terminal) {
           terminal.write(content);
-          terminal.write('\r\n\x1b[90m--- session restored ---\x1b[0m\r\n');
         }
-        // Flush buffered data received during scrollback load
         scrollbackLoaded = true;
         for (const data of pendingData) {
           terminal.write(data);

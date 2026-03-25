@@ -234,8 +234,14 @@ export default function AppLayout() {
                   useStore.getState().updateSurfacePtyId(pane.id, surface.id, '');
                 }
               } else {
-                console.log(`[AppLayout] Surface ${surface.id}: ptyId ${surface.ptyId} not in daemon, clearing`);
-                useStore.getState().updateSurfacePtyId(pane.id, surface.id, '');
+                console.log(`[AppLayout] Surface ${surface.id}: ptyId ${surface.ptyId} not in daemon, creating new PTY`);
+                try {
+                  const newPty = await window.electronAPI.pty.create({ cwd: surface.cwd });
+                  useStore.getState().updateSurfacePtyId(pane.id, surface.id, newPty.id);
+                } catch (err) {
+                  console.error(`[AppLayout] Failed to create replacement PTY:`, err);
+                  useStore.getState().updateSurfacePtyId(pane.id, surface.id, '');
+                }
               }
             }
           } else {
