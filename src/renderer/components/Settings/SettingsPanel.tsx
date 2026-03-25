@@ -284,6 +284,107 @@ function disposePaneTree(pane: { type: string; surfaces?: Array<{ ptyId?: string
   }
 }
 
+// ─── Update status widget ─────────────────────────────────────────────────────
+
+type UpdateState = 'idle' | 'checking' | 'available' | 'downloaded' | 'not-available' | 'error';
+
+function UpdateStatus() {
+  const t = useT();
+  const [state, setState] = useState<UpdateState>('idle');
+  const [releaseName, setReleaseName] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+
+  useEffect(() => {
+    const removeAvailable = window.electronAPI.updater.onUpdateAvailable((data) => {
+      if (data.status === 'downloaded') {
+        setState('downloaded');
+        if (data.releaseName) setReleaseName(data.releaseName);
+      } else {
+        setState('available');
+      }
+    });
+    const removeNotAvailable = window.electronAPI.updater.onUpdateNotAvailable(() => {
+      setState('not-available');
+    });
+    const removeError = window.electronAPI.updater.onUpdateError((data) => {
+      setState('error');
+      setErrorMsg(data.message || '');
+    });
+    return () => { removeAvailable(); removeNotAvailable(); removeError(); };
+  }, []);
+
+  const handleCheck = () => {
+    setState('checking');
+    window.electronAPI.updater.checkForUpdates().catch(() => setState('error'));
+  };
+
+  const handleInstall = () => {
+    window.electronAPI.updater.installUpdate().catch(() => {});
+  };
+
+  const statusText = (() => {
+    switch (state) {
+      case 'checking': return t('settings.checkUpdate') + '...';
+      case 'available': return t('settings.updateAvailable');
+      case 'downloaded': return t('settings.updateReady') + (releaseName ? ` (${releaseName})` : '');
+      case 'not-available': return t('settings.upToDate');
+      case 'error': return t('settings.updateFailed');
+      default: return '';
+    }
+  })();
+
+  const statusColor = (() => {
+    switch (state) {
+      case 'available':
+      case 'downloaded': return 'var(--accent-green, #a6e3a1)';
+      case 'error': return 'var(--accent-red, #f38ba8)';
+      default: return 'var(--text-muted)';
+    }
+  })();
+
+  return (
+    <div
+      className="px-3 py-2.5 rounded-lg flex items-center justify-between"
+      style={{ backgroundColor: 'var(--bg-mantle)', border: '1px solid var(--bg-surface)' }}
+    >
+      <div>
+        <p className="text-sm text-[color:var(--text-main)]">{t('settings.wmuxUpdates')}</p>
+        <p className="text-[11px] mt-0.5" style={{ color: statusText ? statusColor : 'var(--text-muted)' }}>
+          v{__APP_VERSION__}{statusText ? ` — ${statusText}` : ''}
+        </p>
+        {state === 'error' && errorMsg && (
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{errorMsg}</p>
+        )}
+      </div>
+      <div className="flex gap-2 shrink-0 ml-3">
+        {state === 'downloaded' ? (
+          <button
+            onClick={handleInstall}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+            style={{ backgroundColor: 'var(--accent-green, #a6e3a1)', color: '#1e1e2e', border: 'none' }}
+          >
+            {t('settings.updateReady')}
+          </button>
+        ) : (
+          <button
+            onClick={handleCheck}
+            disabled={state === 'checking'}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-main)',
+              border: 'none',
+              opacity: state === 'checking' ? 0.5 : 1,
+            }}
+          >
+            {t('settings.checkUpdate')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab content components ───────────────────────────────────────────────────
 
 function TabGeneral() {
@@ -358,24 +459,7 @@ function TabGeneral() {
             label={t('settings.autoUpdate')}
           />
         </SettingRow>
-        <div
-          className="px-3 py-2.5 rounded-lg flex items-center justify-between"
-          style={{ backgroundColor: 'var(--bg-mantle)', border: '1px solid var(--bg-surface)' }}
-        >
-          <div>
-            <p className="text-sm text-[color:var(--text-main)]">{t('settings.wmuxUpdates')}</p>
-            <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5">v{__APP_VERSION__}</p>
-          </div>
-          <button
-            onClick={() => {
-              window.electronAPI.updater.checkForUpdates().catch(() => {});
-            }}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ml-3 cursor-pointer"
-            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)', border: 'none' }}
-          >
-            {t('settings.checkUpdate')}
-          </button>
-        </div>
+        <UpdateStatus />
       </div>
 
       {/* Reset */}
