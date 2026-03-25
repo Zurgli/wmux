@@ -1,31 +1,34 @@
 /**
  * AutoUpdater
  *
- * Electron 내장 autoUpdater API 기반 자동 업데이트 시스템.
+ * update.electronjs.org 기반 자동 업데이트 시스템.
+ * Chromium의 net 모듈로 업데이트를 확인하고, Squirrel의 Update.exe로 설치.
  *
- * 실제 배포 환경에서는:
- *   1. electron-forge squirrel maker로 빌드
- *   2. GitHub Releases (또는 S3)에 업데이트 파일 업로드
- *   3. FEED_URL을 업데이트 서버 주소로 변경
- *
- * 개발 환경에서는 autoUpdater가 지원되지 않으므로 모두 no-op 처리.
+ * Electron 내장 autoUpdater(Squirrel의 .NET HttpWebRequest)는
+ * GitHub의 다중 302 redirect + TLS 1.2에서 실패하므로 사용하지 않음.
  */
 
-import { autoUpdater, type BrowserWindow, ipcMain } from 'electron';
+import { autoUpdater, app, type BrowserWindow, ipcMain, net, shell } from 'electron';
 import { IPC } from '../../shared/constants';
 
-// Squirrel.Windows reads RELEASES file + .nupkg from this URL.
-// GitHub redirects /releases/latest/download/* → /releases/download/<tag>/*
-const FEED_URL = 'https://github.com/openwong2kim/wmux/releases/latest/download';
+const REPO = 'openwong2kim/wmux';
+const UPDATE_SERVER = `https://update.electronjs.org/${REPO}/win32/${app.getVersion()}`;
 
 // 업데이트 자동 확인 간격 (30분)
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+
+interface UpdateInfo {
+  name: string;
+  notes: string;
+  url: string;
+}
 
 export class AutoUpdater {
   private checkTimer: ReturnType<typeof setInterval> | null = null;
   private getWindow: () => BrowserWindow | null;
   private isChecking = false;
   private enabled = true;
+  private pendingUpdate: UpdateInfo | null = null;
 
   constructor(getWindow: () => BrowserWindow | null) {
     this.getWindow = getWindow;
@@ -34,22 +37,15 @@ export class AutoUpdater {
   start(): void {
     this.registerIpcHandlers();
 
-    if (!FEED_URL || process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development') {
       return;
     }
 
-    try {
-      autoUpdater.setFeedURL({ url: FEED_URL });
-      this.setupAutoUpdaterEvents();
+    // 앱 시작 후 15초 뒤 첫 번째 확인 (시작 부하 방지)
+    setTimeout(() => this.check(), 15_000);
 
-      // 앱 시작 후 15초 뒤 첫 번째 확인 (시작 부하 방지)
-      setTimeout(() => this.check(), 15_000);
-
-      // 이후 주기적 확인
-      this.checkTimer = setInterval(() => this.check(), CHECK_INTERVAL_MS);
-    } catch (err) {
-      console.warn('[AutoUpdater] Failed to initialize:', err);
-    }
+    // 이후 주기적 확인
+    this.checkTimer = setInterval(() => this.check(), CHECK_INTERVAL_MS);
   }
 
   setEnabled(enabled: boolean): void {
@@ -62,79 +58,91 @@ export class AutoUpdater {
       clearInterval(this.checkTimer);
       this.checkTimer = null;
     }
-    autoUpdater.removeAllListeners();  // prevent listener accumulation
-    // IPC 핸들러 정리
     ipcMain.removeAllListeners(IPC.AUTO_UPDATE_ENABLED);
     ipcMain.removeHandler(IPC.UPDATE_CHECK);
     ipcMain.removeHandler(IPC.UPDATE_INSTALL);
   }
 
-  private check(): void {
+  private async check(): Promise<void> {
     if (!this.enabled || this.isChecking) return;
+    this.isChecking = true;
+    this.sendToRenderer(IPC.UPDATE_CHECK, { status: 'checking' });
+
     try {
-      this.isChecking = true;
-      autoUpdater.checkForUpdates();
+      const update = await this.fetchUpdate();
+      if (update) {
+        this.pendingUpdate = update;
+        this.sendToRenderer(IPC.UPDATE_AVAILABLE, {
+          status: 'available',
+          releaseName: update.name,
+          releaseNotes: update.notes,
+        });
+      } else {
+        this.sendToRenderer(IPC.UPDATE_NOT_AVAILABLE, { status: 'not-available' });
+      }
     } catch (err) {
-      console.warn('[AutoUpdater] checkForUpdates error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn('[AutoUpdater] check error:', message);
+      this.sendToRenderer(IPC.UPDATE_ERROR, { status: 'error', message });
+    } finally {
       this.isChecking = false;
     }
   }
 
-  private setupAutoUpdaterEvents(): void {
-    autoUpdater.on('checking-for-update', () => {
-      this.sendToRenderer(IPC.UPDATE_CHECK, { status: 'checking' });
-    });
+  private fetchUpdate(): Promise<UpdateInfo | null> {
+    return new Promise((resolve, reject) => {
+      const request = net.request(UPDATE_SERVER);
+      let body = '';
 
-    autoUpdater.on('update-available', () => {
-      this.isChecking = false;
-      this.sendToRenderer(IPC.UPDATE_AVAILABLE, { status: 'available' });
-    });
-
-    autoUpdater.on('update-not-available', () => {
-      this.isChecking = false;
-      this.sendToRenderer(IPC.UPDATE_NOT_AVAILABLE, { status: 'not-available' });
-    });
-
-    autoUpdater.on('error', (err: Error) => {
-      this.isChecking = false;
-      console.warn('[AutoUpdater] error:', err.message);
-      this.sendToRenderer(IPC.UPDATE_ERROR, { status: 'error', message: err.message });
-    });
-
-    autoUpdater.on('update-downloaded', (_event, releaseNotes, releaseName) => {
-      this.sendToRenderer(IPC.UPDATE_AVAILABLE, {
-        status: 'downloaded',
-        releaseName,
-        releaseNotes,
+      request.on('response', (response) => {
+        // 204 = no update available
+        if (response.statusCode === 204) {
+          resolve(null);
+          return;
+        }
+        if (response.statusCode !== 200) {
+          reject(new Error(`Update server returned ${response.statusCode}`));
+          return;
+        }
+        response.on('data', (chunk) => { body += chunk.toString(); });
+        response.on('end', () => {
+          try {
+            const data = JSON.parse(body) as UpdateInfo;
+            resolve(data);
+          } catch {
+            reject(new Error('Invalid JSON from update server'));
+          }
+        });
       });
+
+      request.on('error', (err) => reject(err));
+      request.end();
     });
   }
 
   private registerIpcHandlers(): void {
-    // Renderer → Main: auto-update toggle
     ipcMain.on(IPC.AUTO_UPDATE_ENABLED, (_event, enabled: boolean) => {
       this.setEnabled(enabled);
     });
 
-    // Renderer가 수동으로 업데이트 확인 요청
-    ipcMain.handle(IPC.UPDATE_CHECK, () => {
-      if (!FEED_URL || process.env.NODE_ENV === 'development') {
+    ipcMain.handle(IPC.UPDATE_CHECK, async () => {
+      if (process.env.NODE_ENV === 'development') {
         return { status: 'not-available' };
       }
+      // Don't await — fire and forget, results come via IPC events
       this.check();
       return { status: 'checking' };
     });
 
-    // Renderer가 "지금 설치" 요청 → 앱 재시작 후 업데이트 적용
     ipcMain.handle(IPC.UPDATE_INSTALL, async () => {
-      // Trigger session save via the existing beforeunload mechanism
+      if (!this.pendingUpdate) return;
+
       const win = this.getWindow();
       if (win && !win.isDestroyed() && !win.webContents.isCrashed()) {
         try {
           await win.webContents.executeJavaScript(
             `try { window.dispatchEvent(new Event('beforeunload')); } catch(e) {}`
           );
-          // Small delay to let the session:save IPC round-trip complete
           await new Promise(resolve => setTimeout(resolve, 500));
           console.log('[AutoUpdater] Session save triggered before update install');
         } catch {
@@ -142,11 +150,8 @@ export class AutoUpdater {
         }
       }
 
-      try {
-        autoUpdater.quitAndInstall();
-      } catch (err) {
-        console.warn('[AutoUpdater] quitAndInstall error:', err);
-      }
+      // Open the Setup.exe download URL — user installs the new version
+      shell.openExternal(this.pendingUpdate.url);
     });
   }
 
