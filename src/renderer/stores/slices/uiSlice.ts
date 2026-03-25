@@ -1,7 +1,8 @@
 import type { StateCreator } from 'zustand';
 import type { StoreState } from '../index';
 import { setLocale as i18nSetLocale, type Locale } from '../../i18n';
-import { generateId, type CustomKeybinding } from '../../../shared/types';
+import { generateId, type CustomKeybinding, type CustomThemeColors } from '../../../shared/types';
+import { applyCustomCssVars, clearCustomCssVars, DEFAULT_CUSTOM_THEME } from '../../themes';
 
 export interface UISlice {
   sidebarVisible: boolean;
@@ -99,13 +100,18 @@ export interface UISlice {
   toggleMessageFeed: () => void;
   setMessageFeedVisible: (visible: boolean) => void;
 
+  // ─── Custom theme ─────────────────────────────────────────────────────
+  customThemeColors: CustomThemeColors | null;
+  setCustomThemeColors: (colors: CustomThemeColors) => void;
+  updateCustomThemeColor: (key: string, value: string) => void;
+
   // ─── Auto-update ──────────────────────────────────────────────────────
   autoUpdateEnabled: boolean;
   setAutoUpdateEnabled: (enabled: boolean) => void;
 
 }
 
-export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]], [], UISlice> = (set) => ({
+export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]], [], UISlice> = (set, get) => ({
   // ─── Sidebar ─────────────────────────────────────────────────────────────
   sidebarVisible: true,
 
@@ -228,10 +234,16 @@ export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]],
   }),
 
   // ─── Theme ──────────────────────────────────────────────────────────────
-  theme: 'catppuccin',
+  theme: 'catppuccin-mocha',
 
   setTheme: (theme) => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'custom') {
+      const colors = get().customThemeColors ?? DEFAULT_CUSTOM_THEME;
+      applyCustomCssVars(colors);
+    } else {
+      clearCustomCssVars();
+    }
     set((state) => {
       state.theme = theme;
     });
@@ -336,6 +348,29 @@ export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]],
   messageFeedVisible: false,
   toggleMessageFeed: () => set((state) => { state.messageFeedVisible = !state.messageFeedVisible; }),
   setMessageFeedVisible: (visible) => set((state) => { state.messageFeedVisible = visible; }),
+
+  // ─── Custom theme ─────────────────────────────────────────────────────
+  customThemeColors: null,
+
+  setCustomThemeColors: (colors) => {
+    set((state) => { state.customThemeColors = colors; });
+    if (get().theme === 'custom') {
+      applyCustomCssVars(colors);
+    }
+  },
+
+  updateCustomThemeColor: (key, value) => {
+    set((state) => {
+      if (!state.customThemeColors) {
+        state.customThemeColors = { ...DEFAULT_CUSTOM_THEME };
+      }
+      (state.customThemeColors as Record<string, string>)[key] = value;
+    });
+    if (get().theme === 'custom') {
+      const colors = get().customThemeColors;
+      if (colors) applyCustomCssVars(colors);
+    }
+  },
 
   // ─── Auto-update ──────────────────────────────────────────────────────
   autoUpdateEnabled: true,

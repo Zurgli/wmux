@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { StoreState } from '../index';
 import { createWorkspace, type Pane, type SessionData, type Workspace, type WorkspaceMetadata } from '../../../shared/types';
 import { setLocale as i18nSetLocale, type Locale } from '../../i18n';
+import { applyCustomCssVars, migrateThemeId } from '../../themes';
 
 export interface WorkspaceSlice {
   workspaces: Workspace[];
@@ -96,9 +97,16 @@ export const createWorkspaceSlice: StateCreator<StoreState, [['zustand/immer', n
       state.sidebarVisible = data.sidebarVisible;
 
       // Restore user preferences
+      if (data.customThemeColors) {
+        state.customThemeColors = data.customThemeColors;
+      }
       if (data.theme) {
-        state.theme = data.theme;
-        document.documentElement.setAttribute('data-theme', data.theme);
+        const theme = migrateThemeId(data.theme);
+        state.theme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'custom' && data.customThemeColors) {
+          applyCustomCssVars(data.customThemeColors);
+        }
       }
       if (data.locale) {
         state.locale = data.locale as Locale;

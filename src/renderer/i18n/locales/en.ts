@@ -163,6 +163,11 @@ export const en = {
   'settings.resetConfirm': 'Are you sure you want to reset all workspaces?',
   'settings.resetDone': 'Reset complete',
 
+  // Custom theme
+  'settings.customTheme': 'Custom Theme',
+  'settings.baseOnPreset': 'Base on preset',
+  'settings.selectPreset': 'Select...',
+
   // First-run auto-update prompt
   'firstRun.autoUpdateTitle': 'Automatic Updates',
   'firstRun.autoUpdateMessage': 'Would you like WMUX to automatically check for updates? You can change this later in Settings.',

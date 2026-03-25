@@ -163,6 +163,11 @@ export const ja = {
   'settings.resetConfirm': 'すべてのワークスペースを初期化してもよろしいですか？',
   'settings.resetDone': '初期化完了',
 
+  // Custom theme
+  'settings.customTheme': 'カスタムテーマ',
+  'settings.baseOnPreset': 'プリセットを元に',
+  'settings.selectPreset': '選択...',
+
   // First-run auto-update prompt
   'firstRun.autoUpdateTitle': '自動アップデート',
   'firstRun.autoUpdateMessage': 'WMUXが自動的にアップデートを確認するようにしますか？後で設定から変更できます。',

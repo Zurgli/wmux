@@ -163,6 +163,11 @@ export const ko = {
   'settings.resetConfirm': '정말 모든 워크스페이스를 초기화하시겠습니까?',
   'settings.resetDone': '초기화 완료',
 
+  // Custom theme
+  'settings.customTheme': '커스텀 테마',
+  'settings.baseOnPreset': '프리셋 기반으로',
+  'settings.selectPreset': '선택...',
+
   // First-run auto-update prompt
   'firstRun.autoUpdateTitle': '자동 업데이트',
   'firstRun.autoUpdateMessage': 'WMUX가 자동으로 업데이트를 확인하도록 할까요? 나중에 설정에서 변경할 수 있습니다.',

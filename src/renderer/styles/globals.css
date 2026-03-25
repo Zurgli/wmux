@@ -4,74 +4,189 @@
 
 /* ─── Theme CSS Variables ────────────────────────────────────────────────── */
 
-:root, [data-theme="catppuccin"] {
-  --bg-base: #1e1e2e;
+:root, [data-theme="catppuccin-mocha"] {
+  --bg-base: #1E1E2E;
   --bg-mantle: #181825;
   --bg-surface: #313244;
-  --bg-overlay: #45475a;
-  --text-muted: #585b70;
-  --text-subtle: #6c7086;
-  --text-sub: #bac2de;
-  --text-sub2: #a6adc8;
-  --text-main: #cdd6f4;
-  --accent-cursor: #f5e0dc;
-  --accent-blue: #89b4fa;
-  --accent-green: #a6e3a1;
-  --accent-red: #f38ba8;
-  --accent-yellow: #f9e2af;
-  --accent-pink: #f5c2e7;
-  --accent-teal: #94e2d5;
-  --accent-purple: #cba6f7;
+  --bg-overlay: #45475A;
+  --text-muted: #585B70;
+  --text-subtle: #6C7086;
+  --text-sub: #BAC2DE;
+  --text-sub2: #A6ADC8;
+  --text-main: #CDD6F4;
+  --accent-cursor: #F5E0DC;
+  --accent-blue: #89B4FA;
+  --accent-green: #A6E3A1;
+  --accent-red: #F38BA8;
+  --accent-yellow: #F9E2AF;
+  --accent-pink: #F5C2E7;
+  --accent-teal: #94E2D5;
+  --accent-purple: #CBA6F7;
   /* RGB variants for opacity usage */
   --accent-blue-rgb: 137, 180, 250;
-  --bg-surface-rgb: 49, 52, 68;
+  --bg-surface-rgb: 49, 50, 68;
   --bg-base-rgb: 30, 30, 46;
 }
 
 [data-theme="monochrome"] {
   --bg-base: #080808;
   --bg-mantle: #050505;
-  --bg-surface: #1c1c1c;
-  --bg-overlay: #2e2e2e;
-  --text-muted: #555555;
-  --text-subtle: #777777;
-  --text-sub: #aaaaaa;
-  --text-sub2: #999999;
-  --text-main: #e0e0e0;
-  --accent-cursor: #ffffff;
-  --accent-blue: #b0b0b0;
-  --accent-green: #d0d0d0;
-  --accent-red: #ff5555;
-  --accent-yellow: #cccccc;
-  --accent-pink: #c0c0c0;
-  --accent-teal: #b8b8b8;
-  --accent-purple: #b8b8b8;
-  --accent-blue-rgb: 176, 176, 176;
-  --bg-surface-rgb: 28, 28, 28;
+  --bg-surface: #1A1A1A;
+  --bg-overlay: #2A2A2A;
+  --text-muted: #404040;
+  --text-subtle: #606060;
+  --text-sub: #B0B0B0;
+  --text-sub2: #888888;
+  --text-main: #E0E0E0;
+  --accent-cursor: #FFFFFF;
+  --accent-blue: #A0A0A0;
+  --accent-green: #909090;
+  --accent-red: #FF5555;
+  --accent-yellow: #C0C0C0;
+  --accent-pink: #999999;
+  --accent-teal: #888888;
+  --accent-purple: #959595;
+  --accent-blue-rgb: 160, 160, 160;
+  --bg-surface-rgb: 26, 26, 26;
   --bg-base-rgb: 8, 8, 8;
 }
 
-[data-theme="sandstone"] {
-  --bg-base: #F5F0E8;
-  --bg-mantle: #EDE6D9;
-  --bg-surface: #E0D8CA;
-  --bg-overlay: #D5CCBC;
-  --text-muted: #B8A898;
-  --text-subtle: #9A8C7C;
-  --text-sub: #6B5D4F;
-  --text-sub2: #7A6E60;
-  --text-main: #3D3429;
-  --accent-cursor: #3D3429;
-  --accent-blue: #DA7756;
-  --accent-green: #5A8A4C;
-  --accent-red: #C4533A;
-  --accent-yellow: #B8912D;
-  --accent-pink: #B5647A;
-  --accent-teal: #4A9588;
-  --accent-purple: #7A6AAF;
-  --accent-blue-rgb: 218, 119, 86;
-  --bg-surface-rgb: 224, 216, 202;
-  --bg-base-rgb: 245, 240, 232;
+[data-theme="stars-and-stripes"] {
+  --bg-base: #0C1428;
+  --bg-mantle: #091020;
+  --bg-surface: #1E2E4A;
+  --bg-overlay: #2A3E5A;
+  --text-muted: #3A5070;
+  --text-subtle: #4A6080;
+  --text-sub: #A0B0C8;
+  --text-sub2: #8090A8;
+  --text-main: #C8D6E8;
+  --accent-cursor: #5B8DEF;
+  --accent-blue: #5B8DEF;
+  --accent-green: #4EBF8B;
+  --accent-red: #E8554E;
+  --accent-yellow: #F2C85B;
+  --accent-pink: #C792EA;
+  --accent-teal: #5BC0BE;
+  --accent-purple: #9B7ED8;
+  --accent-blue-rgb: 91, 141, 239;
+  --bg-surface-rgb: 30, 46, 74;
+  --bg-base-rgb: 12, 20, 40;
+}
+
+[data-theme="red-dynasty"] {
+  --bg-base: #1A0A0A;
+  --bg-mantle: #140808;
+  --bg-surface: #3A1A1A;
+  --bg-overlay: #4A2A2A;
+  --text-muted: #5A3A30;
+  --text-subtle: #6A4A3E;
+  --text-sub: #C0A898;
+  --text-sub2: #A08878;
+  --text-main: #E8D0C0;
+  --accent-cursor: #E84040;
+  --accent-blue: #6AA0CC;
+  --accent-green: #5AAE6A;
+  --accent-red: #E84040;
+  --accent-yellow: #F2C744;
+  --accent-pink: #D4A0D0;
+  --accent-teal: #5A9E8A;
+  --accent-purple: #9A7AB8;
+  --accent-blue-rgb: 106, 160, 204;
+  --bg-surface-rgb: 58, 26, 26;
+  --bg-base-rgb: 26, 10, 10;
+}
+
+[data-theme="nightowl"] {
+  --bg-base: #1E1B16;
+  --bg-mantle: #161310;
+  --bg-surface: #2E2A22;
+  --bg-overlay: #38332A;
+  --text-muted: #5A5340;
+  --text-subtle: #6B6350;
+  --text-sub: #9A9080;
+  --text-sub2: #847A68;
+  --text-main: #C8BFA8;
+  --accent-cursor: #C4A055;
+  --accent-blue: #C4A055;
+  --accent-green: #8AAA70;
+  --accent-red: #CC6B5A;
+  --accent-yellow: #C89060;
+  --accent-pink: #B0886E;
+  --accent-teal: #8A9A6A;
+  --accent-purple: #AA8A6A;
+  --accent-blue-rgb: 196, 160, 85;
+  --bg-surface-rgb: 46, 42, 34;
+  --bg-base-rgb: 30, 27, 22;
+}
+
+[data-theme="void"] {
+  --bg-base: #000000;
+  --bg-mantle: #000000;
+  --bg-surface: #0A0A0A;
+  --bg-overlay: #141414;
+  --text-muted: #333333;
+  --text-subtle: #505050;
+  --text-sub: #909090;
+  --text-sub2: #707070;
+  --text-main: #C0C0C0;
+  --accent-cursor: #FFFFFF;
+  --accent-blue: #C0C0C0;
+  --accent-green: #909090;
+  --accent-red: #FF4444;
+  --accent-yellow: #A0A0A0;
+  --accent-pink: #808080;
+  --accent-teal: #888888;
+  --accent-purple: #858585;
+  --accent-blue-rgb: 192, 192, 192;
+  --bg-surface-rgb: 10, 10, 10;
+  --bg-base-rgb: 0, 0, 0;
+}
+
+[data-theme="hinomaru"] {
+  --bg-base: #FAF8F5;
+  --bg-mantle: #F0ECE6;
+  --bg-surface: #E2DDD4;
+  --bg-overlay: #D4CFC6;
+  --text-muted: #A8A098;
+  --text-subtle: #8A827A;
+  --text-sub: #4A4540;
+  --text-sub2: #6A655E;
+  --text-main: #2A2522;
+  --accent-cursor: #2A2522;
+  --accent-blue: #2C5F7C;
+  --accent-green: #5A7A6A;
+  --accent-red: #BC002D;
+  --accent-yellow: #C4882D;
+  --accent-pink: #A85060;
+  --accent-teal: #4A8A7A;
+  --accent-purple: #7B6B8A;
+  --accent-blue-rgb: 44, 95, 124;
+  --bg-surface-rgb: 226, 221, 212;
+  --bg-base-rgb: 250, 248, 245;
+}
+
+[data-theme="taegeuk"] {
+  --bg-base: #F8F8FA;
+  --bg-mantle: #EEEEF2;
+  --bg-surface: #DDDDE4;
+  --bg-overlay: #CCCCD6;
+  --text-muted: #9A9AA8;
+  --text-subtle: #6A6A7A;
+  --text-sub: #3A3A50;
+  --text-sub2: #5A5A70;
+  --text-main: #1A1A2E;
+  --accent-cursor: #1A1A2E;
+  --accent-blue: #003478;
+  --accent-green: #2D8A56;
+  --accent-red: #C60C30;
+  --accent-yellow: #D4930D;
+  --accent-pink: #A03060;
+  --accent-teal: #1A7A7A;
+  --accent-purple: #5A3D8A;
+  --accent-blue-rgb: 0, 52, 120;
+  --bg-surface-rgb: 221, 221, 228;
+  --bg-base-rgb: 248, 248, 250;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */

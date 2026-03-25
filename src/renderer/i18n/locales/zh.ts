@@ -163,6 +163,11 @@ export const zh = {
   'settings.resetConfirm': '确定要重置所有工作区吗？',
   'settings.resetDone': '重置完成',
 
+  // Custom theme
+  'settings.customTheme': '自定义主题',
+  'settings.baseOnPreset': '基于预设',
+  'settings.selectPreset': '选择...',
+
   // First-run auto-update prompt
   'firstRun.autoUpdateTitle': '自动更新',
   'firstRun.autoUpdateMessage': '是否让 WMUX 自动检查更新？您可以稍后在设置中更改。',

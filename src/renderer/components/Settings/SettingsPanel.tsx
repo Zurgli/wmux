@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useStore } from '../../stores';
 import { LOCALE_OPTIONS, type Locale } from '../../i18n';
 import { useT } from '../../hooks/useT';
-import { THEME_OPTIONS } from '../../themes';
+import { THEME_OPTIONS, builtinToCustom, DEFAULT_CUSTOM_THEME, type BuiltinThemeId, type ThemeId } from '../../themes';
+import type { CustomThemeColors } from '../../../shared/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -468,6 +469,176 @@ function TabGeneral() {
   );
 }
 
+// ─── Color picker row ────────────────────────────────────────────────────────
+
+function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const handleChange = useCallback((hex: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onChange(hex), 50);
+  }, [onChange]);
+
+  return (
+    <div className="flex items-center justify-between py-1 px-2">
+      <span className="text-[11px] text-[color:var(--text-sub)] font-mono">{label}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-[color:var(--text-muted)] font-mono">{value}</span>
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+          style={{ backgroundColor: 'transparent' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Custom theme editor ─────────────────────────────────────────────────────
+
+const UI_COLOR_GROUPS: { label: string; keys: { key: keyof CustomThemeColors; label: string }[] }[] = [
+  {
+    label: 'Background',
+    keys: [
+      { key: 'bgBase', label: 'Base' },
+      { key: 'bgMantle', label: 'Mantle' },
+      { key: 'bgSurface', label: 'Surface' },
+      { key: 'bgOverlay', label: 'Overlay' },
+    ],
+  },
+  {
+    label: 'Text',
+    keys: [
+      { key: 'textMain', label: 'Main' },
+      { key: 'textSub', label: 'Sub' },
+      { key: 'textSub2', label: 'Sub2' },
+      { key: 'textSubtle', label: 'Subtle' },
+      { key: 'textMuted', label: 'Muted' },
+    ],
+  },
+  {
+    label: 'Accent',
+    keys: [
+      { key: 'accentBlue', label: 'Blue' },
+      { key: 'accentGreen', label: 'Green' },
+      { key: 'accentRed', label: 'Red' },
+      { key: 'accentYellow', label: 'Yellow' },
+      { key: 'accentPink', label: 'Pink' },
+      { key: 'accentTeal', label: 'Teal' },
+      { key: 'accentPurple', label: 'Purple' },
+      { key: 'accentCursor', label: 'Cursor' },
+    ],
+  },
+  {
+    label: 'Terminal',
+    keys: [
+      { key: 'xtermBackground', label: 'Background' },
+      { key: 'xtermForeground', label: 'Foreground' },
+      { key: 'xtermCursor', label: 'Cursor' },
+      { key: 'xtermSelection', label: 'Selection' },
+      { key: 'xtermBlack', label: 'Black' },
+      { key: 'xtermRed', label: 'Red' },
+      { key: 'xtermGreen', label: 'Green' },
+      { key: 'xtermYellow', label: 'Yellow' },
+      { key: 'xtermBlue', label: 'Blue' },
+      { key: 'xtermMagenta', label: 'Magenta' },
+      { key: 'xtermCyan', label: 'Cyan' },
+      { key: 'xtermWhite', label: 'White' },
+    ],
+  },
+];
+
+const BASE_ON_OPTIONS: { value: BuiltinThemeId; label: string }[] = [
+  { value: 'catppuccin-mocha', label: 'Catppuccin' },
+  { value: 'stars-and-stripes', label: 'Stars & Stripes' },
+  { value: 'red-dynasty', label: 'Red Dynasty' },
+  { value: 'nightowl', label: 'Nightowl' },
+  { value: 'void', label: 'Void' },
+  { value: 'monochrome', label: 'Monochrome' },
+  { value: 'hinomaru', label: 'Hinomaru' },
+  { value: 'taegeuk', label: 'Taegeuk' },
+];
+
+function CustomThemeEditor() {
+  const t = useT();
+  const customThemeColors = useStore((s) => s.customThemeColors) ?? DEFAULT_CUSTOM_THEME;
+  const setCustomThemeColors = useStore((s) => s.setCustomThemeColors);
+  const updateCustomThemeColor = useStore((s) => s.updateCustomThemeColor);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Accent');
+
+  return (
+    <div className="flex flex-col gap-2">
+      <SectionLabel label={t('settings.customTheme')} />
+
+      {/* Base on preset */}
+      <div
+        className="flex items-center justify-between px-3 py-2 rounded-lg"
+        style={{ backgroundColor: 'var(--bg-mantle)', border: '1px solid var(--bg-surface)' }}
+      >
+        <span className="text-[11px] text-[color:var(--text-sub)]">{t('settings.baseOnPreset')}</span>
+        <select
+          className="text-[11px] rounded px-2 py-0.5 font-mono"
+          style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--bg-overlay)' }}
+          onChange={(e) => {
+            setCustomThemeColors(builtinToCustom(e.target.value as BuiltinThemeId));
+          }}
+          defaultValue=""
+        >
+          <option value="" disabled>{t('settings.selectPreset')}</option>
+          {BASE_ON_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Color groups (accordion) */}
+      {UI_COLOR_GROUPS.map((group) => (
+        <div
+          key={group.label}
+          className="rounded-lg overflow-hidden"
+          style={{ backgroundColor: 'var(--bg-mantle)', border: '1px solid var(--bg-surface)' }}
+        >
+          <button
+            className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold text-[color:var(--text-sub)] uppercase tracking-wider"
+            onClick={() => setExpandedGroup(expandedGroup === group.label ? null : group.label)}
+          >
+            <span>{group.label}</span>
+            <span className="text-[10px] text-[color:var(--text-muted)]">
+              {expandedGroup === group.label ? '▾' : '▸'}
+            </span>
+          </button>
+          {expandedGroup === group.label && (
+            <div className="pb-1">
+              {group.keys.map(({ key, label }) => (
+                <ColorRow
+                  key={key}
+                  label={label}
+                  value={customThemeColors[key]}
+                  onChange={(v) => updateCustomThemeColor(key, v)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Theme preview swatch ────────────────────────────────────────────────────
+
+function ThemeSwatch({ colors }: { colors: [string, string, string, string] }) {
+  return (
+    <div className="flex gap-0.5 justify-center mb-1.5">
+      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[0], border: '1px solid rgba(128,128,128,0.3)' }} />
+      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[1] }} />
+      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[2] }} />
+      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[3] }} />
+    </div>
+  );
+}
+
 function TabAppearance() {
   const t = useT();
   const terminalFontSize    = useStore((s) => s.terminalFontSize);
@@ -486,23 +657,27 @@ function TabAppearance() {
       {/* Theme */}
       <div className="flex flex-col gap-2">
         <SectionLabel label="Theme" />
-        <div className="grid grid-cols-3 gap-2">
-          {THEME_OPTIONS.map(({ value, label }) => (
+        <div className="grid grid-cols-5 gap-1.5">
+          {THEME_OPTIONS.map(({ value, label, preview }) => (
             <button
               key={value}
               onClick={() => setTheme(value)}
-              className="px-3 py-3 rounded-lg text-xs transition-colors text-center"
+              className="px-2 py-2 rounded-lg text-[11px] transition-colors text-center flex flex-col items-center"
               style={{
                 backgroundColor: currentTheme === value ? 'var(--bg-surface)' : 'transparent',
                 color: currentTheme === value ? 'var(--text-main)' : 'var(--text-subtle)',
                 border: `1px solid ${currentTheme === value ? 'var(--accent-blue)' : 'var(--bg-surface)'}`,
               }}
             >
+              <ThemeSwatch colors={preview} />
               {label}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Custom theme editor — shown when custom theme selected */}
+      {currentTheme === 'custom' && <CustomThemeEditor />}
 
       <div className="flex flex-col gap-2">
         <SectionLabel label={t('settings.terminal')} />

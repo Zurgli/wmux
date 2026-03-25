@@ -97,10 +97,54 @@ export interface SessionData {
   notificationRingEnabled?: boolean;
   customKeybindings?: CustomKeybinding[];
   autoUpdateEnabled?: boolean;
+  customThemeColors?: CustomThemeColors;
   sidebarMode?: 'workspaces' | 'company';
   company?: { name: string; totalCostEstimate: number } | null;
   memberCosts?: Record<string, number>;
   sessionStartTime?: number;
+}
+
+// === Custom Theme Colors ===
+export interface CustomThemeColors {
+  // CSS variables
+  bgBase: string;
+  bgMantle: string;
+  bgSurface: string;
+  bgOverlay: string;
+  textMuted: string;
+  textSubtle: string;
+  textSub: string;
+  textSub2: string;
+  textMain: string;
+  accentCursor: string;
+  accentBlue: string;
+  accentGreen: string;
+  accentRed: string;
+  accentYellow: string;
+  accentPink: string;
+  accentTeal: string;
+  accentPurple: string;
+  // xterm terminal colors
+  xtermBackground: string;
+  xtermForeground: string;
+  xtermCursor: string;
+  xtermSelection: string;
+  xtermBlack: string;
+  xtermRed: string;
+  xtermGreen: string;
+  xtermYellow: string;
+  xtermBlue: string;
+  xtermMagenta: string;
+  xtermCyan: string;
+  xtermWhite: string;
+  xtermBrightBlack: string;
+  xtermBrightRed: string;
+  xtermBrightGreen: string;
+  xtermBrightYellow: string;
+  xtermBrightBlue: string;
+  xtermBrightMagenta: string;
+  xtermBrightCyan: string;
+  xtermBrightWhite: string;
 }
 
 // === Utility: generate unique IDs ===

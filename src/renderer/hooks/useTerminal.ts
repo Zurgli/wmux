@@ -5,7 +5,7 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 import { useStore } from '../stores';
 import { t } from '../i18n';
-import { XTERM_THEMES, type ThemeId } from '../themes';
+import { XTERM_THEMES, extractXtermColors, type ThemeId, type BuiltinThemeId } from '../themes';
 
 // Module-level terminal registry for scrollback persistence
 const terminalRegistry = new Map<string, Terminal>();
@@ -47,7 +47,10 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
   const terminalFontFamily = useStore((s) => s.terminalFontFamily);
   const scrollbackLines = useStore((s) => s.scrollbackLines);
   const theme = useStore((s) => s.theme) as ThemeId;
-  const xtermTheme = XTERM_THEMES[theme] ?? XTERM_THEMES.catppuccin;
+  const customThemeColors = useStore((s) => s.customThemeColors);
+  const xtermTheme = theme === 'custom' && customThemeColors
+    ? extractXtermColors(customThemeColors)
+    : XTERM_THEMES[theme as BuiltinThemeId] ?? XTERM_THEMES['catppuccin-mocha'];
 
   const fit = useCallback(() => {
     const container = containerRef.current;

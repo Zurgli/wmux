@@ -122,6 +122,7 @@ function buildSessionData(dumped: Map<string, boolean>): SessionData {
     notificationRingEnabled: state.notificationRingEnabled,
     customKeybindings: state.customKeybindings,
     autoUpdateEnabled: state.autoUpdateEnabled,
+    customThemeColors: state.customThemeColors ?? undefined,
   };
 }
 
