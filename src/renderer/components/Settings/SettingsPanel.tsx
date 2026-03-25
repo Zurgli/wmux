@@ -366,15 +366,15 @@ function TabGeneral() {
             <p className="text-sm text-[color:var(--text-main)]">{t('settings.wmuxUpdates')}</p>
             <p className="text-[11px] text-[color:var(--text-muted)] mt-0.5">v{__APP_VERSION__}</p>
           </div>
-          <a
-            href="https://github.com/openwong2kim/wmux/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ml-3"
-            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)' }}
+          <button
+            onClick={() => {
+              window.electronAPI.updater.checkForUpdates().catch(() => {});
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ml-3 cursor-pointer"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-main)', border: 'none' }}
           >
             {t('settings.checkUpdate')}
-          </a>
+          </button>
         </div>
       </div>
 
