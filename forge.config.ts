@@ -67,6 +67,22 @@ const config: ForgeConfig = {
         copyDirSync(path.join(__dirname, 'node_modules', 'node-pty'), daemonNodePty);
         console.log('[postPackage] Done — node-pty available for daemon.');
       }
+
+      // 6. Remove .ps1 files from resources — NuGet 2.8 treats PowerShell files
+      //    outside the 'tools' folder as errors, breaking Squirrel nupkg creation.
+      const resourcesDir = path.join(outputPath, 'resources');
+      const removePsFiles = (dir: string) => {
+        if (!fs.existsSync(dir)) return;
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) removePsFiles(full);
+          else if (entry.name.endsWith('.ps1')) {
+            fs.unlinkSync(full);
+            console.log(`[postPackage] Removed ${path.relative(outputPath, full)}`);
+          }
+        }
+      };
+      removePsFiles(resourcesDir);
     },
   },
   makers: [
@@ -101,7 +117,10 @@ const config: ForgeConfig = {
     }),
     new FusesPlugin({
       version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
+      // Required: daemon process uses ELECTRON_RUN_AS_NODE=1 to spawn
+      // a detached Node.js process from wmux.exe. Acceptable for a terminal
+      // multiplexer that already executes arbitrary shell commands.
+      [FuseV1Options.RunAsNode]: true,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
