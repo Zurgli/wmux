@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '../../stores';
+import { useT } from '../../hooks/useT';
 import Sidebar from '../Sidebar/Sidebar';
 import MiniSidebar from '../Sidebar/MiniSidebar';
 import PaneContainer from '../Pane/PaneContainer';
@@ -120,6 +121,7 @@ function buildSessionData(dumped: Map<string, boolean>): SessionData {
     toastEnabled: state.toastEnabled,
     notificationRingEnabled: state.notificationRingEnabled,
     customKeybindings: state.customKeybindings,
+    autoUpdateEnabled: state.autoUpdateEnabled,
   };
 }
 
@@ -137,6 +139,9 @@ export default function AppLayout() {
   const clearMultiview = useStore((s) => s.clearMultiview);
   const setActiveWorkspace = useStore((s) => s.setActiveWorkspace);
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+
+  const [showAutoUpdatePrompt, setShowAutoUpdatePrompt] = useState(false);
+  const t = useT();
 
   useKeyboard();
   useNotificationListener();
@@ -203,10 +208,20 @@ export default function AppLayout() {
     window.electronAPI.session.load().then(async (saved: SessionData | null) => {
       if (!saved) {
         sessionLoadedRef.current = true;
+        // First ever launch — ask about auto-update
+        setShowAutoUpdatePrompt(true);
         return;
       }
+
+      // If autoUpdateEnabled was never set (upgrade from older version), prompt
+      const isFirstAutoUpdateChoice = saved.autoUpdateEnabled == null;
+
       useStore.getState().loadSession(saved);
       sessionLoadedRef.current = true;
+
+      if (isFirstAutoUpdateChoice) {
+        setShowAutoUpdatePrompt(true);
+      }
 
       // Reconcile saved PTY IDs with daemon's active sessions.
       // If a saved ptyId exists in the daemon, reconnect to it.
@@ -422,6 +437,56 @@ export default function AppLayout() {
       <CommandPalette />
       <SettingsPanel />
       <ApprovalDialog />
+
+      {/* First-run auto-update prompt */}
+      {showAutoUpdatePrompt && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <div
+            className="flex flex-col gap-4 p-6 rounded-xl"
+            style={{
+              width: 400,
+              backgroundColor: 'var(--bg-base)',
+              border: '1px solid var(--bg-surface)',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.75)',
+            }}
+          >
+            <p className="text-sm font-semibold text-[color:var(--text-main)] font-mono">
+              {t('firstRun.autoUpdateTitle')}
+            </p>
+            <p className="text-xs text-[color:var(--text-sub)]">
+              {t('firstRun.autoUpdateMessage')}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  useStore.getState().setAutoUpdateEnabled(false);
+                  window.electronAPI.settings.setAutoUpdateEnabled(false);
+                  setShowAutoUpdatePrompt(false);
+                }}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-subtle)' }}
+              >
+                {t('firstRun.disable')}
+              </button>
+              <button
+                onClick={() => {
+                  useStore.getState().setAutoUpdateEnabled(true);
+                  window.electronAPI.settings.setAutoUpdateEnabled(true);
+                  setShowAutoUpdatePrompt(false);
+                }}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{ backgroundColor: 'var(--accent-blue)', color: '#1e1e2e' }}
+              >
+                {t('firstRun.enable')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {companyViewVisible && (
         <CompanyView onClose={() => setCompanyViewVisible(false)} />
       )}

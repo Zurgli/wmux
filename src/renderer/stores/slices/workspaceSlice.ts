@@ -116,6 +116,10 @@ export const createWorkspaceSlice: StateCreator<StoreState, [['zustand/immer', n
       }
       if (data.notificationRingEnabled != null) state.notificationRingEnabled = data.notificationRingEnabled;
       if (data.customKeybindings) state.customKeybindings = data.customKeybindings;
+      if (data.autoUpdateEnabled != null) {
+        state.autoUpdateEnabled = data.autoUpdateEnabled;
+        window.electronAPI.settings.setAutoUpdateEnabled(data.autoUpdateEnabled);
+      }
       if (data.sidebarMode) state.sidebarMode = data.sidebarMode;
       if (data.company !== undefined) state.company = data.company ?? null;
       if (data.memberCosts) state.memberCosts = data.memberCosts;

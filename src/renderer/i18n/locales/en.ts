@@ -162,6 +162,12 @@ export const en = {
   'settings.resetButton': 'Reset',
   'settings.resetConfirm': 'Are you sure you want to reset all workspaces?',
   'settings.resetDone': 'Reset complete',
+
+  // First-run auto-update prompt
+  'firstRun.autoUpdateTitle': 'Automatic Updates',
+  'firstRun.autoUpdateMessage': 'Would you like WMUX to automatically check for updates? You can change this later in Settings.',
+  'firstRun.enable': 'Enable',
+  'firstRun.disable': 'No thanks',
 } as const;
 
 export type TranslationKey = keyof typeof en;

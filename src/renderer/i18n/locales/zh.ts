@@ -162,4 +162,10 @@ export const zh = {
   'settings.resetButton': '重置',
   'settings.resetConfirm': '确定要重置所有工作区吗？',
   'settings.resetDone': '重置完成',
+
+  // First-run auto-update prompt
+  'firstRun.autoUpdateTitle': '自动更新',
+  'firstRun.autoUpdateMessage': '是否让 WMUX 自动检查更新？您可以稍后在设置中更改。',
+  'firstRun.enable': '启用',
+  'firstRun.disable': '不需要',
 } as const;

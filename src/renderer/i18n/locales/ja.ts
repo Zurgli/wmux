@@ -162,4 +162,10 @@ export const ja = {
   'settings.resetButton': '初期化',
   'settings.resetConfirm': 'すべてのワークスペースを初期化してもよろしいですか？',
   'settings.resetDone': '初期化完了',
+
+  // First-run auto-update prompt
+  'firstRun.autoUpdateTitle': '自動アップデート',
+  'firstRun.autoUpdateMessage': 'WMUXが自動的にアップデートを確認するようにしますか？後で設定から変更できます。',
+  'firstRun.enable': '有効にする',
+  'firstRun.disable': 'いいえ',
 } as const;

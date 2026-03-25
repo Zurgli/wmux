@@ -96,6 +96,7 @@ export interface SessionData {
   toastEnabled?: boolean;
   notificationRingEnabled?: boolean;
   customKeybindings?: CustomKeybinding[];
+  autoUpdateEnabled?: boolean;
   sidebarMode?: 'workspaces' | 'company';
   company?: { name: string; totalCostEstimate: number } | null;
   memberCosts?: Record<string, number>;
