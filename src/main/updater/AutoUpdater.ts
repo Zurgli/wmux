@@ -14,9 +14,9 @@
 import { autoUpdater, type BrowserWindow, ipcMain } from 'electron';
 import { IPC } from '../../shared/constants';
 
-// Squirrel.Windows reads RELEASES file + .nupkg directly from GitHub Releases.
-// No separate update server needed.
-const FEED_URL = 'https://github.com/openwong2kim/wmux/releases/latest';
+// Squirrel.Windows reads RELEASES file + .nupkg from this URL.
+// GitHub redirects /releases/latest/download/* → /releases/download/<tag>/*
+const FEED_URL = 'https://github.com/openwong2kim/wmux/releases/latest/download';
 
 // 업데이트 자동 확인 간격 (30분)
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
