@@ -123,15 +123,18 @@ appInit();
 
 function appInit(): void {
 
+let isQuitting = false;
+
 // Prevent multiple instances — focus existing window instead
 const gotLock = app.requestSingleInstanceLock();
-console.log('[DEBUG] gotLock =', gotLock);
+console.log(`[DEBUG] gotLock = ${gotLock}`);
 if (!gotLock) {
   console.log('[DEBUG] failed to get single instance lock, quitting');
   app.quit();
   return;
 } else {
   app.on('second-instance', () => {
+    if (isQuitting) return;
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -226,7 +229,7 @@ console.log('[DEBUG] registering app.on(ready)');
 app.on('ready', async () => {
   console.log('[Main] App ready, creating window...');
   mainWindow = createWindow();
-  console.log('[Main] Window created:', !!mainWindow);
+  console.log(`[Main] Window created: ${!!mainWindow}`);
 
   attachWindowRecovery(mainWindow);
 
@@ -308,7 +311,6 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-let isQuitting = false;
 app.on('before-quit', async (e) => {
   if (isQuitting) return; // second pass — let quit proceed
   e.preventDefault();
@@ -347,6 +349,7 @@ app.on('before-quit', async (e) => {
 });
 
 app.on('activate', () => {
+  if (isQuitting) return;
   if (BrowserWindow.getAllWindows().length === 0) {
     mainWindow = createWindow();
     attachWindowRecovery(mainWindow);

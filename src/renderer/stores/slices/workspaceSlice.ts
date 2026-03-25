@@ -116,6 +116,10 @@ export const createWorkspaceSlice: StateCreator<StoreState, [['zustand/immer', n
       }
       if (data.notificationRingEnabled != null) state.notificationRingEnabled = data.notificationRingEnabled;
       if (data.customKeybindings) state.customKeybindings = data.customKeybindings;
+      if (data.sidebarMode) state.sidebarMode = data.sidebarMode;
+      if (data.company !== undefined) state.company = data.company ?? null;
+      if (data.memberCosts) state.memberCosts = data.memberCosts;
+      if (data.sessionStartTime != null) state.sessionStartTime = data.sessionStartTime;
     }),
   };
 };

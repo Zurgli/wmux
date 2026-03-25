@@ -124,12 +124,15 @@ export const createSurfaceSlice: StateCreator<StoreState, [['zustand/immer', nev
   }),
 
   updateSurfacePtyId: (paneId, surfaceId, ptyId) => set((state: StoreState) => {
-    const ws = state.workspaces.find((w: Workspace) => w.id === state.activeWorkspaceId);
-    if (!ws) return;
-    const pane = findLeafPane(ws.rootPane, paneId);
-    if (!pane) return;
-    const surface = pane.surfaces.find((s) => s.id === surfaceId);
-    if (surface) surface.ptyId = ptyId;
+    for (const ws of state.workspaces) {
+      const pane = findLeafPane(ws.rootPane, paneId);
+      if (!pane) continue;
+      const surface = pane.surfaces.find((s) => s.id === surfaceId);
+      if (surface) {
+        surface.ptyId = ptyId;
+        return;
+      }
+    }
   }),
 
   updateSurfaceTitle: (surfaceId, title) => set((state: StoreState) => {

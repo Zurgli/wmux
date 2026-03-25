@@ -253,16 +253,46 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     };
 
     if (scrollbackFile) {
+      // Register PTY listeners immediately to avoid data loss during scrollback load.
+      // scrollback.load() is async (IPC round-trip). If PTY sends data before it
+      // resolves, connectPty() would not yet be called and data would be lost.
+      // Instead, buffer incoming data and flush after scrollback is written.
+      const pendingData: string[] = [];
+      let scrollbackLoaded = false;
+
+      removeDataListener = window.electronAPI.pty.onData((id, data) => {
+        if (id !== ptyId) return;
+        if (scrollbackLoaded) {
+          terminal.write(data);
+        } else {
+          pendingData.push(data);
+        }
+      });
+
+      removeExitListener = window.electronAPI.pty.onExit((id, exitCode) => {
+        if (id === ptyId) {
+          terminal.writeln(`\r\n${t('terminal.exitedBracket', { code: exitCode })}`);
+        }
+      });
+
       window.electronAPI.scrollback.load(scrollbackFile).then((content) => {
         if (content && terminalRef.current === terminal) {
           terminal.write(content);
           terminal.write('\r\n\x1b[90m--- session restored ---\x1b[0m\r\n');
         }
-        // Always connect PTY directly — no output suppression.
-        // Previous suppress logic blocked all output (including user input echo)
-        // until a prompt pattern was detected, making the terminal appear frozen.
-        connectPty();
-      }).catch(() => { connectPty(); });
+        // Flush buffered data received during scrollback load
+        scrollbackLoaded = true;
+        for (const data of pendingData) {
+          terminal.write(data);
+        }
+        pendingData.length = 0;
+      }).catch(() => {
+        scrollbackLoaded = true;
+        for (const data of pendingData) {
+          terminal.write(data);
+        }
+        pendingData.length = 0;
+      });
     } else {
       connectPty();
     }

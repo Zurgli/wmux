@@ -345,7 +345,7 @@ export default function BrowserPanel({ surfaceId, initialUrl, isActive, onClose 
       }
     };
     wv.addEventListener('console-message', onConsole as EventListener);
-    return () => wv.removeEventListener('console-message', onConsole as EventListener);
+    return () => { wv.removeEventListener('console-message', onConsole as EventListener); };
   }, [removeInspector]);
 
   const handleOpenDevTools = useCallback(() => {

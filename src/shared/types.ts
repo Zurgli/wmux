@@ -96,6 +96,10 @@ export interface SessionData {
   toastEnabled?: boolean;
   notificationRingEnabled?: boolean;
   customKeybindings?: CustomKeybinding[];
+  sidebarMode?: 'workspaces' | 'company';
+  company?: { name: string; totalCostEstimate: number } | null;
+  memberCosts?: Record<string, number>;
+  sessionStartTime?: number;
 }
 
 // === Utility: generate unique IDs ===

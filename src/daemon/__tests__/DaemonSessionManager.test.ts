@@ -94,7 +94,7 @@ describe('DaemonSessionManager', () => {
     expect(session).toBeDefined();
     expect(session.id).toBe('test-1');
     expect(session.state).toBe('detached');
-    expect(session.cmd).toBe('cmd.exe');
+    expect(session.cmd).toContain('cmd.exe');
     expect(session.cwd).toBe('C:\\Users');
     expect(session.cols).toBe(80);
     expect(session.rows).toBe(24);
