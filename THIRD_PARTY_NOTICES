@@ -1,0 +1,12 @@
+This file contains third-party notices for software bundled with wmux.
+
+================================================================================
+Playwright
+Copyright (c) Microsoft Corporation
+Licensed under the Apache License, Version 2.0
+
+This software contains code derived from the Puppeteer project
+(https://github.com/puppeteer/puppeteer), available under the Apache 2.0 license.
+
+License: https://www.apache.org/licenses/LICENSE-2.0
+================================================================================
