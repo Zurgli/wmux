@@ -23,7 +23,21 @@ export const createWorkspaceSlice: StateCreator<StoreState, [['zustand/immer', n
     activeWorkspaceId: initial.id,
 
     addWorkspace: (name) => set((state: StoreState) => {
-      const ws = createWorkspace(name || `Workspace ${state.workspaces.length + 1}`);
+      let wsName = name;
+      if (!wsName) {
+        const usedNumbers = new Set(
+          state.workspaces
+            .map((w: Workspace) => {
+              const m = w.name.match(/^Workspace (\d+)$/);
+              return m ? parseInt(m[1], 10) : null;
+            })
+            .filter((n): n is number => n !== null),
+        );
+        let n = 1;
+        while (usedNumbers.has(n)) n++;
+        wsName = `Workspace ${n}`;
+      }
+      const ws = createWorkspace(wsName);
       state.workspaces.push(ws);
       state.activeWorkspaceId = ws.id;
     }),
