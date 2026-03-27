@@ -40,6 +40,11 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
+  // WebGL addon ref — shared across effects so visibility toggling can
+  // dispose/recreate the addon without exceeding the GPU context limit.
+  const webglAddonRef = useRef<WebglAddon | null>(null);
+  // loadWebgl closure ref — set by the main effect, called by visibility effect.
+  const loadWebglRef = useRef<(() => void) | null>(null);
   const { ptyId, isVisible = true, scrollbackFile } = options;
   const ptyIdRef = useRef(ptyId);
   ptyIdRef.current = ptyId;
@@ -94,16 +99,33 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     terminal.loadAddon(searchAddon);
     terminal.open(container);
 
-    // Try WebGL, fall back to canvas
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        webglAddon.dispose();
-      });
-      terminal.loadAddon(webglAddon);
-    } catch {
-      console.warn('WebGL addon failed, using canvas renderer');
+    // WebGL addon loading — only called for visible terminals.
+    // Chromium limits simultaneous WebGL contexts (~8–16). Exceeding the limit
+    // causes context-loss on the oldest context, killing that terminal's renderer.
+    // We therefore load WebGL lazily (via the visibility effect) and dispose it
+    // when the terminal is hidden, keeping the active context count low.
+    function loadWebgl() {
+      if (webglAddonRef.current) return; // already loaded
+      try {
+        const addon = new WebglAddon();
+        addon.onContextLoss(() => {
+          console.warn('[Terminal] WebGL context lost — falling back to canvas');
+          addon.dispose();
+          webglAddonRef.current = null;
+          try {
+            terminal.refresh(0, terminal.rows - 1);
+          } catch {
+            // terminal may already be disposed
+          }
+        });
+        terminal.loadAddon(addon);
+        webglAddonRef.current = addon;
+      } catch {
+        console.warn('WebGL addon failed, using canvas renderer');
+        webglAddonRef.current = null;
+      }
     }
+    loadWebglRef.current = loadWebgl;
 
     // Only fit immediately if the container is actually visible (non-zero size).
     // If the workspace starts hidden (display:none), skip the initial fit so we
@@ -113,11 +135,19 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       fitAddon.fit();
     }
 
-    // Wait for fonts to fully load, then re-fit and refresh to fix CJK glyph
-    // rendering issues (WebGL atlas built before font metrics are final).
+    // Wait for fonts to fully load, then rebuild the WebGL glyph atlas.
+    // font-display:swap causes the browser to render with a fallback font first,
+    // so the WebGL atlas may contain glyphs measured with wrong metrics.
+    // A simple refresh() doesn't rebuild the atlas — we must dispose and
+    // recreate the WebGL addon to force a full atlas rebuild.
     document.fonts.ready.then(() => {
       if (!terminalRef.current || terminalRef.current !== terminal) return;
       if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
+      if (webglAddonRef.current) {
+        webglAddonRef.current.dispose();
+        webglAddonRef.current = null;
+        loadWebgl();
+      }
       fitAddon.fit();
       terminal.refresh(0, terminal.rows - 1);
     });
@@ -371,6 +401,9 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       removeDataListener?.();
       removeExitListener?.();
       terminalRegistry.delete(ptyId);
+      webglAddonRef.current?.dispose();
+      webglAddonRef.current = null;
+      loadWebglRef.current = null;
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -388,16 +421,28 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     fitAddonRef.current?.fit();
   }, [terminalFontSize, terminalFontFamily, xtermTheme]);
 
-  // Re-fit when the terminal becomes visible (workspace switch or surface tab switch).
-  // Without this, a terminal that was initialized while hidden (0-size) will display
-  // at the wrong size until the next manual resize.
+  // Manage WebGL lifecycle based on visibility.
+  // Load WebGL when visible (GPU-accelerated rendering), dispose when hidden
+  // to free the WebGL context for other terminals.  Also re-fit so a terminal
+  // that was initialized while hidden displays at the correct size.
   useEffect(() => {
-    if (!isVisible) return;
-    // Defer slightly to allow the CSS display change to take effect before measuring
-    const id = requestAnimationFrame(() => {
-      fit();
-    });
-    return () => cancelAnimationFrame(id);
+    if (isVisible) {
+      // Load WebGL for this terminal if not already loaded
+      if (!webglAddonRef.current && loadWebglRef.current) {
+        loadWebglRef.current();
+      }
+      // Defer fit to allow CSS display change to take effect before measuring
+      const id = requestAnimationFrame(() => {
+        fit();
+      });
+      return () => cancelAnimationFrame(id);
+    } else {
+      // Dispose WebGL when hidden — free the context for other terminals
+      if (webglAddonRef.current) {
+        webglAddonRef.current.dispose();
+        webglAddonRef.current = null;
+      }
+    }
   }, [isVisible, fit]);
 
   const findNext = useCallback((text: string) => {

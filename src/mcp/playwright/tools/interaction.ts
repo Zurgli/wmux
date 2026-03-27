@@ -500,4 +500,75 @@ export function registerInteractionTools(server: McpServer): void {
     },
   );
 
+  // -----------------------------------------------------------------------
+  // browser_scroll
+  // -----------------------------------------------------------------------
+  server.tool(
+    'browser_scroll',
+    'Scroll the page or a scrollable element. Use direction and amount to control scrolling.',
+    {
+      direction: z
+        .enum(['up', 'down', 'left', 'right'])
+        .describe('Scroll direction'),
+      amount: z
+        .number()
+        .optional()
+        .describe('Pixels to scroll (default: 500). Use large values like 99999 for "scroll to top/bottom".'),
+      ref: z
+        .string()
+        .optional()
+        .describe('Element ref to scroll inside (e.g. a scrollable container). Omit to scroll the page.'),
+      surfaceId: optionalSurfaceId,
+    },
+    async ({ direction, amount, ref, surfaceId }) => {
+      const px = amount ?? 500;
+      const deltaX = direction === 'right' ? px : direction === 'left' ? -px : 0;
+      const deltaY = direction === 'down' ? px : direction === 'up' ? -px : 0;
+      try {
+        const page = await engine.getPage(surfaceId).catch(() => null);
+
+        if (page) {
+          if (ref) {
+            const el = await resolveRef(page, ref);
+            if (!el) throw new Error(refNotFound(ref));
+            await el.evaluate(
+              (node, [dx, dy]) => { (node as Element).scrollBy(dx, dy); },
+              [deltaX, deltaY] as [number, number],
+            );
+          } else {
+            await page.evaluate(
+              ([dx, dy]) => { window.scrollBy(dx, dy); },
+              [deltaX, deltaY] as [number, number],
+            );
+          }
+        } else {
+          // RPC fallback
+          if (ref) {
+            await rpcEval(`(() => {
+              const el = document.querySelector('[data-wmux-ref="${ref}"]');
+              if (!el) return 'not_found';
+              el.scrollBy(${deltaX}, ${deltaY});
+              return 'ok';
+            })()`, surfaceId);
+          } else {
+            await rpcEval(`(() => {
+              window.scrollBy(${deltaX}, ${deltaY});
+              return 'ok';
+            })()`, surfaceId);
+          }
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: `Scrolled ${direction} by ${px}px${ref ? ` (element ref=${ref})` : ''}` }],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: 'text' as const, text: message }],
+          isError: true,
+        };
+      }
+    },
+  );
+
 }

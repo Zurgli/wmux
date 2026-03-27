@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Panel Resize: block webview pointer capture during separator drag ─── */
+body.wmux-resizing webview {
+  pointer-events: none !important;
+}
+
 /* ─── Bundled Fonts (SIL Open Font License) ─────────────────────────────── */
 
 @font-face {

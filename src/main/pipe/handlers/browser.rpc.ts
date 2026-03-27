@@ -341,11 +341,14 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
     let y = typeof params['y'] === 'number' ? params['y'] : 0;
 
     if (selector) {
-      // Get element coordinates via JS evaluation
+      // Scroll element into view and get its viewport coordinates.
+      // Without scrollIntoView, off-screen elements return coordinates outside
+      // the viewport bounds, causing CDP mouse events to miss the target.
       const coordResult = await wc.debugger.sendCommand('Runtime.evaluate', {
         expression: `(() => {
           const el = document.querySelector(${JSON.stringify(selector)});
           if (!el) return null;
+          el.scrollIntoView({ block: 'center', behavior: 'instant' });
           const r = el.getBoundingClientRect();
           return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         })()`,
@@ -358,7 +361,12 @@ export function registerBrowserRpc(router: RpcRouter, getWindow: GetWindow, webv
       y = coords.y;
     }
 
-    // Simulate mouse click via CDP
+    // Simulate mouse click via CDP.
+    // Dispatch mouseMoved first — some frameworks (React, Vue) require hover
+    // state before a click registers (e.g. onClick handlers on hover-revealed elements).
+    await wc.debugger.sendCommand('Input.dispatchMouseEvent', {
+      type: 'mouseMoved', x, y,
+    });
     await wc.debugger.sendCommand('Input.dispatchMouseEvent', {
       type: 'mousePressed', x, y, button: 'left', clickCount: 1,
     });
