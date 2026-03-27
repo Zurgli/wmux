@@ -180,7 +180,7 @@ function SplitSurfaceView({
   // Both terminals and browsers exist — resizable split
   return (
     <div className="flex-1 relative overflow-hidden">
-      <Group orientation="horizontal" className="h-full w-full">
+      <Group orientation="horizontal" className="h-full w-full" resizeTargetMinimumSize={{ coarse: 37, fine: 16 }}>
         {/* Terminal panel */}
         <Panel defaultSize={50} minSize={20}>
           <div className="h-full w-full relative overflow-hidden">
@@ -197,7 +197,7 @@ function SplitSurfaceView({
           </div>
         </Panel>
 
-        <Separator className="w-1 bg-[var(--bg-surface)] hover:bg-[var(--accent-blue)] transition-colors cursor-col-resize" />
+        <Separator className="w-1.5 bg-[var(--bg-surface)] hover:bg-[var(--accent-blue)] transition-colors cursor-col-resize" />
 
         {/* Browser panel */}
         <Panel defaultSize={50} minSize={20}>

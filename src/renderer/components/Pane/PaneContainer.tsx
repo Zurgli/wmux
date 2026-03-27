@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 import type { Pane as PaneType } from '../../../shared/types';
 import { useStore } from '../../stores';
@@ -21,20 +22,20 @@ export default function PaneContainer({ pane, isWorkspaceVisible = true }: PaneC
   const orientation = pane.direction === 'horizontal' ? 'horizontal' : 'vertical';
 
   return (
-    <Group orientation={orientation} className="h-full w-full">
+    <Group orientation={orientation} className="h-full w-full" resizeTargetMinimumSize={{ coarse: 37, fine: 16 }}>
       {pane.children.map((child, i) => (
-        <div key={child.id} className="contents">
+        <Fragment key={child.id}>
           {i > 0 && (
             <Separator
               className={`${
-                orientation === 'horizontal' ? 'w-1' : 'h-1'
+                orientation === 'horizontal' ? 'w-1.5' : 'h-1.5'
               } bg-[var(--bg-surface)] hover:bg-[var(--accent-blue)] transition-colors`}
             />
           )}
           <Panel defaultSize={pane.sizes?.[i] ?? 100 / pane.children.length} minSize={10}>
             <PaneContainer pane={child} isWorkspaceVisible={isWorkspaceVisible} />
           </Panel>
-        </div>
+        </Fragment>
       ))}
     </Group>
   );
