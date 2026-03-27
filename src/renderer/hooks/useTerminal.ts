@@ -213,14 +213,25 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
           // Try text first
           const text = await window.clipboardAPI.readText();
           if (text) {
-            window.electronAPI.pty.write(ptyId, text);
+            // Wrap in bracketed paste sequences when the terminal app
+            // has enabled bracketed paste mode (e.g. Claude Code, bash).
+            // This lets the app distinguish typed input from pasted text
+            // and show confirmations like "[N lines]" for long pastes.
+            const modes = (terminal as unknown as { modes?: { bracketedPasteMode?: boolean } }).modes;
+            if (modes?.bracketedPasteMode) {
+              window.electronAPI.pty.write(ptyId, `\x1b[200~${text}\x1b[201~`);
+            } else {
+              window.electronAPI.pty.write(ptyId, text);
+            }
             return;
           }
           // No text — check for image, save to temp file, paste path
-          const imagePath = await window.clipboardAPI.readImage();
-          if (imagePath) {
-            const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
-            window.electronAPI.pty.write(ptyId, quoted);
+          if (window.clipboardAPI.readImage) {
+            const imagePath = await window.clipboardAPI.readImage();
+            if (imagePath) {
+              const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
+              window.electronAPI.pty.write(ptyId, quoted);
+            }
           }
         })().catch(() => {});
         return false;
@@ -241,13 +252,20 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
         void (async () => {
           const text = await window.clipboardAPI.readText();
           if (text) {
-            window.electronAPI.pty.write(ptyId, text);
+            const modes = (terminal as unknown as { modes?: { bracketedPasteMode?: boolean } }).modes;
+            if (modes?.bracketedPasteMode) {
+              window.electronAPI.pty.write(ptyId, `\x1b[200~${text}\x1b[201~`);
+            } else {
+              window.electronAPI.pty.write(ptyId, text);
+            }
             return;
           }
-          const imagePath = await window.clipboardAPI.readImage();
-          if (imagePath) {
-            const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
-            window.electronAPI.pty.write(ptyId, quoted);
+          if (window.clipboardAPI.readImage) {
+            const imagePath = await window.clipboardAPI.readImage();
+            if (imagePath) {
+              const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
+              window.electronAPI.pty.write(ptyId, quoted);
+            }
           }
         })().catch(() => {});
         return false;
@@ -263,13 +281,20 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
         const text = await window.clipboardAPI.readText();
         console.log('[wmux:clipboard] right-click paste len=', text?.length ?? 0);
         if (text) {
-          window.electronAPI.pty.write(ptyId, text);
+          const modes = (terminal as unknown as { modes?: { bracketedPasteMode?: boolean } }).modes;
+          if (modes?.bracketedPasteMode) {
+            window.electronAPI.pty.write(ptyId, `\x1b[200~${text}\x1b[201~`);
+          } else {
+            window.electronAPI.pty.write(ptyId, text);
+          }
           return;
         }
-        const imagePath = await window.clipboardAPI.readImage();
-        if (imagePath) {
-          const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
-          window.electronAPI.pty.write(ptyId, quoted);
+        if (window.clipboardAPI.readImage) {
+          const imagePath = await window.clipboardAPI.readImage();
+          if (imagePath) {
+            const quoted = imagePath.includes(' ') ? `"${imagePath}"` : imagePath;
+            window.electronAPI.pty.write(ptyId, quoted);
+          }
         }
       })().catch((err) => console.error('[wmux:clipboard] right-click error:', err));
     });

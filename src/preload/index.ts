@@ -122,6 +122,7 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 const clipboardAPI = {
   writeText: (text: string) => ipcRenderer.invoke(IPC.CLIPBOARD_WRITE, text),
   readText: () => ipcRenderer.invoke(IPC.CLIPBOARD_READ) as Promise<string>,
+  readImage: () => ipcRenderer.invoke(IPC.CLIPBOARD_READ_IMAGE) as Promise<string | null>,
 };
 contextBridge.exposeInMainWorld('clipboardAPI', clipboardAPI);
 
