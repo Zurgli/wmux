@@ -69,10 +69,11 @@ export class DaemonPipeServer {
     }
 
     // On Windows, named pipes can linger as zombie handles after process death.
-    // Try the primary name, then fall back to suffixed names.
-    // Use enough attempts to survive scenarios where multiple crashed daemons
-    // each held a pipe (8 covers realistic cascading failure cases).
-    const maxAttempts = process.platform === 'win32' ? 8 : 1;
+    // Strategy: try to connect to the existing pipe first. If the connection
+    // succeeds, a live process owns it — fall back to a suffixed name.
+    // If the connection is refused / reset, the pipe is a zombie — force-
+    // release it by briefly connecting+destroying, then retry listen.
+    const maxAttempts = process.platform === 'win32' ? 4 : 1;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const candidateName = attempt === 0
@@ -85,14 +86,70 @@ export class DaemonPipeServer {
         return;
       } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
-        const isRetriable = code === 'EADDRINUSE' || code === 'EACCES';
-        if (!isRetriable || attempt === maxAttempts - 1) {
+        if (code !== 'EADDRINUSE' && code !== 'EACCES') {
           throw err;
         }
-        // Wait briefly before trying next name
+
+        // Attempt to reclaim the zombie pipe before falling back
+        if (process.platform === 'win32' && code === 'EADDRINUSE') {
+          const reclaimed = await this.tryReclaimPipe(candidateName);
+          if (reclaimed) {
+            try {
+              await this.tryListen(candidateName);
+              this.activePipeName = candidateName;
+              return;
+            } catch {
+              // Reclaim succeeded but listen still failed — fall through
+            }
+          }
+        }
+
+        if (attempt === maxAttempts - 1) {
+          throw err;
+        }
         await new Promise((r) => setTimeout(r, 300));
       }
     }
+  }
+
+  /**
+   * Attempt to reclaim a zombie Windows named pipe.
+   *
+   * When a process crashes without closing its pipe handle, Windows keeps the
+   * pipe object alive until all handles are closed.  We probe the pipe:
+   *   - If connect succeeds → a live process owns it, cannot reclaim.
+   *   - If connect gets ECONNREFUSED/ECONNRESET → zombie pipe. Connecting
+   *     and immediately destroying the socket releases the last handle,
+   *     freeing the pipe name for reuse.
+   */
+  private tryReclaimPipe(name: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const probe = net.connect(name);
+      const timer = setTimeout(() => {
+        probe.destroy();
+        resolve(false);
+      }, 2000);
+      timer.unref();
+
+      probe.on('connect', () => {
+        // Pipe is owned by a live process — cannot reclaim
+        clearTimeout(timer);
+        probe.destroy();
+        resolve(false);
+      });
+
+      probe.on('error', (err: NodeJS.ErrnoException) => {
+        clearTimeout(timer);
+        probe.destroy();
+        if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.code === 'EPIPE') {
+          // Zombie pipe — the connect attempt released the handle
+          // Wait briefly for Windows to clean up the pipe name
+          setTimeout(() => resolve(true), 200);
+        } else {
+          resolve(false);
+        }
+      });
+    });
   }
 
   /** Try to listen on a specific pipe name. */
