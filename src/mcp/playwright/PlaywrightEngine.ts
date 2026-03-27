@@ -46,6 +46,8 @@ export class PlaywrightEngine {
   private browser: Browser | null = null;
   private cdpPort: number | null = null;
   private playwrightFailed = false;
+  /** Prevents repeated auto-open attempts within the same getPage call chain. */
+  private autoOpenAttempted = false;
 
   private constructor() {}
 
@@ -128,6 +130,8 @@ export class PlaywrightEngine {
    * 1. Check existing Playwright pages (works if webview is in a discoverable context)
    * 2. Use CDP Target domain to find and attach to webview targets directly
    * 3. Fetch /json endpoint for target discovery
+   * 4. Auto-open a browser surface via RPC if none exists (so callers don't
+   *    need to know about browser_open ordering)
    */
   async getPage(surfaceId?: string): Promise<Page | null> {
     // Fast-fail if Playwright has already failed to find webview pages.
@@ -160,6 +164,23 @@ export class PlaywrightEngine {
           if (page) return page;
         }
 
+        // Strategy 4: No browser surface exists — auto-open one via RPC.
+        // This eliminates the requirement for callers to call browser_open first.
+        if (attempt === 1 && !this.autoOpenAttempted) {
+          console.error('[PlaywrightEngine] No page found — auto-opening browser surface');
+          this.autoOpenAttempted = true;
+          try {
+            await sendRpc('browser.open', {});
+            // Wait for the webview to register its CDP target
+            await sleep(2000);
+            await this.disconnect();
+            await this.ensureConnected();
+            continue; // retry page discovery
+          } catch (openErr) {
+            console.error('[PlaywrightEngine] Auto-open failed:', openErr instanceof Error ? openErr.message : String(openErr));
+          }
+        }
+
         if (attempt < PAGE_FIND_RETRIES) {
           console.error(`[PlaywrightEngine] No page found, reconnecting... (${attempt}/${PAGE_FIND_RETRIES})`);
           await sleep(PAGE_FIND_DELAY_MS);
@@ -183,7 +204,7 @@ export class PlaywrightEngine {
     this.playwrightFailed = true;
     // Auto-reset after 10s so subsequent browser.open calls get a fresh chance.
     // Without this, one early failure permanently blocks all Playwright page discovery.
-    setTimeout(() => { this.playwrightFailed = false; }, 10_000);
+    setTimeout(() => { this.playwrightFailed = false; this.autoOpenAttempted = false; }, 10_000);
     return null;
   }
 
