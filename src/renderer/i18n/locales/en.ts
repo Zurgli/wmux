@@ -128,6 +128,7 @@ export const en = {
   'settings.sc.toggleSidebar': 'Toggle sidebar',
   'settings.sc.splitHorizontal': 'Split pane horizontal',
   'settings.sc.splitVertical': 'Split pane vertical',
+  'settings.sc.focusPaneDirection': 'Focus adjacent pane',
   'settings.sc.newWorkspace': 'New workspace',
   'settings.sc.closePane': 'Close pane / workspace',
   'settings.sc.searchTerminal': 'Search in terminal',

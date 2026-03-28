@@ -128,6 +128,7 @@ export const ja = {
   'settings.sc.toggleSidebar': 'サイドバー切替',
   'settings.sc.splitHorizontal': '水平分割',
   'settings.sc.splitVertical': '垂直分割',
+  'settings.sc.focusPaneDirection': '隣のペインに移動',
   'settings.sc.newWorkspace': '新ワークスペース',
   'settings.sc.closePane': 'ペイン/ワークスペースを閉じる',
   'settings.sc.searchTerminal': 'ターミナル内検索',

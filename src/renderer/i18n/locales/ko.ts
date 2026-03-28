@@ -128,6 +128,7 @@ export const ko = {
   'settings.sc.toggleSidebar': '사이드바 전환',
   'settings.sc.splitHorizontal': '가로 분할',
   'settings.sc.splitVertical': '세로 분할',
+  'settings.sc.focusPaneDirection': '인접한 창으로 이동',
   'settings.sc.newWorkspace': '새 작업공간',
   'settings.sc.closePane': '창/작업공간 닫기',
   'settings.sc.searchTerminal': '터미널에서 검색',

@@ -128,6 +128,7 @@ export const zh = {
   'settings.sc.toggleSidebar': '切换侧边栏',
   'settings.sc.splitHorizontal': '水平分割面板',
   'settings.sc.splitVertical': '垂直分割面板',
+  'settings.sc.focusPaneDirection': '切换到相邻面板',
   'settings.sc.newWorkspace': '新建工作区',
   'settings.sc.closePane': '关闭面板/工作区',
   'settings.sc.searchTerminal': '在终端中搜索',

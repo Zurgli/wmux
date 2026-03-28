@@ -832,6 +832,7 @@ function TabShortcuts() {
     { keys: 'Ctrl+B',       description: t('settings.sc.toggleSidebar') },
     { keys: 'Ctrl+D',       description: t('settings.sc.splitHorizontal') },
     { keys: 'Ctrl+Shift+D', description: t('settings.sc.splitVertical') },
+    { keys: 'Ctrl+Alt+←↑→↓', description: t('settings.sc.focusPaneDirection') },
     { keys: 'Ctrl+T',       description: t('settings.sc.newWorkspace') },
     { keys: 'Ctrl+W',       description: t('settings.sc.closePane') },
     { keys: 'Ctrl+F',       description: t('settings.sc.searchTerminal') },
