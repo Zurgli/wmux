@@ -1,5 +1,6 @@
 import * as pty from 'node-pty';
 import os from 'node:os';
+import path from 'node:path';
 import { getPipeName, ENV_KEYS } from '../../shared/constants';
 
 export interface PTYInstance {
@@ -112,13 +113,16 @@ export class PTYManager {
     }
   }
 
-  private getDefaultShell(): string {
+  static getPreferredDefaultShell(): string {
     if (process.platform === 'win32') {
-      // Try PowerShell paths in order — basename alone may fail
-      // if Electron's PATH is limited (e.g. installed via install.ps1)
+      // Prefer PowerShell 7 when installed. Several renderer flows call
+      // pty.create() without an explicit shell, so the main-process fallback
+      // must choose the modern shell consistently.
       const candidates = [
-        `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`,
         `${process.env.ProgramFiles}\\PowerShell\\7\\pwsh.exe`,
+        path.join(process.env.LOCALAPPDATA || '', 'Microsoft\\WindowsApps\\pwsh.exe'),
+        `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`,
+        'pwsh.exe',
         'powershell.exe',
         'cmd.exe',
       ];
@@ -129,5 +133,9 @@ export class PTYManager {
       return 'cmd.exe';
     }
     return process.env.SHELL || '/bin/bash';
+  }
+
+  private getDefaultShell(): string {
+    return PTYManager.getPreferredDefaultShell();
   }
 }

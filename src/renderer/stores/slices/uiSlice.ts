@@ -221,7 +221,7 @@ export const createUISlice: StateCreator<StoreState, [['zustand/immer', never]],
     state.terminalFontFamily = family;
   }),
 
-  defaultShell: 'powershell',
+  defaultShell: 'pwsh',
 
   setDefaultShell: (shell) => set((state) => {
     state.defaultShell = shell;

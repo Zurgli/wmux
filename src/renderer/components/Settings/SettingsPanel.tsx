@@ -181,7 +181,8 @@ function KbdRow({ keys, description }: { keys: string; description: string }) {
 // ─── Static config (product names — no translation needed) ───────────────────
 
 const SHELL_OPTIONS = [
-  { value: 'powershell', label: 'PowerShell' },
+  { value: 'pwsh',       label: 'PowerShell 7' },
+  { value: 'powershell', label: 'Windows PowerShell' },
   { value: 'cmd',        label: 'Command Prompt' },
   { value: 'gitbash',   label: 'Git Bash' },
   { value: 'wsl',        label: 'WSL' },

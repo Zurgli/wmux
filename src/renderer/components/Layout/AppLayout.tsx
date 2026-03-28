@@ -146,6 +146,7 @@ export default function AppLayout() {
 
   const [showAutoUpdatePrompt, setShowAutoUpdatePrompt] = useState(false);
   const t = useT();
+  const pendingPaneCreatesRef = useRef<Set<string>>(new Set());
 
   useKeyboard();
   useNotificationListener();
@@ -319,41 +320,66 @@ export default function AppLayout() {
     return () => { clearInterval(interval); };
   }, []);
 
-  // Auto-create initial surface for empty leaf panes
-  // 세션 복원된 경우: surfaces가 이미 있으므로 이 effect는 실행되지 않음
-  // 브라우저 surface만 있는 pane: surfaceType이 'browser'이면 PTY 생성 스킵
+  // Auto-create terminal surfaces for empty leaf panes.
+  // This covers the initial root pane and any later splits that would otherwise
+  // render as permanently empty panes.
   useEffect(() => {
     if (!activeWorkspace) return;
-    const root = activeWorkspace.rootPane;
-    if (root.type !== 'leaf') return;
+    let cancelled = false;
 
-    // surfaces가 비어있을 때만 새 PTY 생성
-    if (root.surfaces.length === 0) {
-      let cancelled = false;
-      const paneId = root.id;
+    const collectEmptyLeafIds = (pane: Pane): string[] => {
+      if (pane.type === 'leaf') {
+        return pane.surfaces.length === 0 ? [pane.id] : [];
+      }
+      return pane.children.flatMap(collectEmptyLeafIds);
+    };
+
+    const spawnForPane = (paneId: string) => {
+      if (pendingPaneCreatesRef.current.has(paneId)) return;
+      pendingPaneCreatesRef.current.add(paneId);
+
       window.electronAPI.pty.create().then((result: { id: string; cwd?: string }) => {
         if (cancelled) {
           window.electronAPI.pty.dispose(result.id);
           return;
         }
+
+        const state = useStore.getState();
+        const ws = state.workspaces.find((w) => w.id === activeWorkspace.id);
+        if (!ws) {
+          window.electronAPI.pty.dispose(result.id);
+          return;
+        }
+
+        const findLeaf = (node: Pane): PaneLeaf | null => {
+          if (node.type === 'leaf') return node.id === paneId ? node : null;
+          for (const child of node.children) {
+            const found = findLeaf(child);
+            if (found) return found;
+          }
+          return null;
+        };
+
+        const pane = findLeaf(ws.rootPane);
+        if (!pane || pane.surfaces.length > 0) {
+          window.electronAPI.pty.dispose(result.id);
+          return;
+        }
+
         addSurface(paneId, result.id, 'Terminal', result.cwd || '');
-        // Set initial CWD in workspace metadata so FileTree can use it immediately
-        if (result.cwd && activeWorkspace) {
+        if (result.cwd) {
           useStore.getState().updateWorkspaceMetadata(activeWorkspace.id, { cwd: result.cwd });
         }
+      }).finally(() => {
+        pendingPaneCreatesRef.current.delete(paneId);
       });
-      return () => { cancelled = true; };
-    }
+    };
 
-    // surfaces가 있지만 모두 browser 타입인 경우 PTY 생성 스킵
-    const hasTerminalSurface = root.surfaces.some(
-      (s) => !s.surfaceType || s.surfaceType === 'terminal'
-    );
-    if (!hasTerminalSurface) {
-      // 브라우저만 있는 pane — PTY 불필요, 아무것도 하지 않음
-      return;
-    }
-  }, [activeWorkspace?.id]);
+    const emptyLeafIds = collectEmptyLeafIds(activeWorkspace.rootPane);
+    emptyLeafIds.forEach(spawnForPane);
+
+    return () => { cancelled = true; };
+  }, [activeWorkspace, addSurface]);
 
   if (!activeWorkspace) return null;
 

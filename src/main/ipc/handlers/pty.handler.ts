@@ -63,7 +63,7 @@ export function registerPTYHandlers(
 
       const safeCwd = validateCwd(options?.cwd);
       const effectiveCwd = safeCwd ?? require('os').homedir();
-      const shell = options?.shell || (process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || '/bin/bash'));
+      const shell = options?.shell || PTYManager.getPreferredDefaultShell();
 
       // Generate a unique session ID
       const crypto = require('crypto');

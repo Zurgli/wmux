@@ -138,7 +138,11 @@ export function useKeyboard() {
           if (surface?.ptyId) {
             window.electronAPI.pty.dispose(surface.ptyId);
           }
+          const isLastSurface = activePane.surfaces.length <= 1;
           state.closeSurface(activePane.id, activePane.activeSurfaceId);
+          if (isLastSurface) {
+            state.closePane(activePane.id);
+          }
         }
         return;
       }
