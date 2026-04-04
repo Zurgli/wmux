@@ -26,6 +26,16 @@ Keep PRs focused on a single concern. Don't mix unrelated changes.
 
 If your work touches multiple areas, split it into separate PRs.
 
+### Fork And Upstream Branch Strategy
+
+If a change needs to go to both your fork and the upstream repository, use two branches instead of trying to reuse one branch for both targets.
+
+- Create an `-upstream` branch from `upstream/main` that contains only the change intended for the upstream PR.
+- Create a `-fork` branch from your local `main` branch, then cherry-pick the same feature commit onto it for the fork PR.
+- Open the fork PR from the `-fork` branch and the upstream PR from the `-upstream` branch.
+
+This avoids pulling fork-only commits into upstream review and avoids pulling upstream-only cleanup into fork integration.
+
 ### PR Checklist
 
 - [ ] `npx tsc --noEmit` passes
